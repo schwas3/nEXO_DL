@@ -86,6 +86,8 @@ def cost_fn(logits, levels):
 
 def compute_mae_and_mse(net, data_loader, device):
     mae, mse, num_examples = 0, 0, 0
+    test_predicts = []
+    test_targets = []
     for i, (features, targets, levels) in enumerate(data_loader):
         features = features.to(device)
         targets = targets.to(device)
@@ -94,12 +96,13 @@ def compute_mae_and_mse(net, data_loader, device):
         predict_levels = probas > 0.5
         predicted_labels = torch.sum(predict_levels, dim=1)
         num_examples += targets.size(0)
-        print(predicted_labels, targets)
+        test_predicts.append(predicted_labels.cpu().numpy())
+        test_targets.append(targets.cpu().numpy())
         mae += torch.sum(torch.abs(predicted_labels - targets))
         mse += torch.sum((predicted_labels - targets)**2)
     mae = mae.float() / num_examples
     mse = mse.float() / num_examples
-    return mae, mse
+    return mae, mse, test_predicts, test_targets
 
 
 class nEXODatasetFromImages(Dataset):
@@ -214,10 +217,12 @@ if __name__ == "__main__":
 
         net.eval()
         with torch.set_grad_enabled(False):  # save memory during inference
-            test_mae, test_mse = compute_mae_and_mse(net, validation_loader,
-                                                  device=device)
+            test_mae, test_mse , test_predicts, test_targets = compute_mae_and_mse(net,
+                                            validation_loader, device=device)
 
             s = 'MAE/RMSE: | Test: %.2f/%.2f' % (test_mae, torch.sqrt(test_mse))
+            np.save('test_predicts_%d.npy' % epoch, np.array(test_predicts) )
+            np.save('test_targets_%d.npy' % epoch, np.array(test_targets) )
             print(s)
     s = 'Time elapsed: %.2f min' % ((time.time() - start_time)/60)
     print(s)
