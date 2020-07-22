@@ -223,6 +223,22 @@ if __name__ == "__main__":
             s = 'MAE/RMSE: | Test: %.2f/%.2f' % (test_mae, torch.sqrt(test_mse))
             np.save('test_predicts_%d.npy' % epoch, np.array(test_predicts) )
             np.save('test_targets_%d.npy' % epoch, np.array(test_targets) )
+
             print(s)
+            # Save checkpoint.
+            acc = test_mse
+            if acc < best_acc:
+                print('Saving..')
+                state = {
+                    'net': net.state_dict(),
+                    'acc': acc,
+                    'epoch': epoch,
+                }
+                if not os.path.isdir('checkpoint_sens' ):
+                    os.mkdir('checkpoint_sens' )
+                torch.save(state, './checkpoint_sens/ckpt_%d.t7' % epoch)
+                torch.save(state, './checkpoint_sens/ckpt.t7' )
+                best_acc = acc
+
     s = 'Time elapsed: %.2f min' % ((time.time() - start_time)/60)
     print(s)
