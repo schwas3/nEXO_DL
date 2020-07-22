@@ -6,10 +6,7 @@
 
 import pandas as pd
 import numpy as np
-#from PIL import Image
-from numpy import load
-import scipy.misc
-from scipy.special import exp10
+from PIL import Image
 
 import torch
 import torch.nn as nn
@@ -27,25 +24,17 @@ from torch.optim import lr_scheduler
 import argparse
 import resnet_example
 import traceback
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import pickle
 
-#device = 'cuda'
-if torch.cuda.is_available():
-    device = 'cuda'
-else:
-    device = 'cpu'
-list_of_gpus = range(torch.cuda.device_count())
-device_ids = range(torch.cuda.device_count())
-os.environ["CUDA_VISIBLE_DEVICES"] = str(list_of_gpus).strip('[]').replace(' ', '')
-
+device = 'cuda' #if torch.cuda.is_available() else 'cpu'
 best_acc = 0  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 epochs = 200
 
 def adjust_learning_rate(optimizer, epoch, lr):
-    """Sets the learning rate to the initial LR decayed by 10 every 20 epochs"""
-    lr = lr/exp10(epoch/20)
+    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
+    lr = lr
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
@@ -56,10 +45,10 @@ def cropandflip(npimg2d):
     flip2 = np.random.rand()
     for i in range(3):
         imgpad[:,:] = npimg2d[ :,:,i]
-        #if flip1>0.5:
-        #    imgpad = np.flip( imgpad, 0 )
-        #if flip2>0.5:
-        #    imgpad = np.flip( imgpad, 1 )
+        if flip1>0.5:
+            imgpad = np.flip( imgpad, 0 )
+        if flip2>0.5:
+            imgpad = np.flip( imgpad, 1 )
         transformimg[:,:,i] = imgpad[:,:]
     return transformimg
 
@@ -86,13 +75,12 @@ class nEXODatasetFromImages(Dataset):
         # Get image name from the pandas df
         single_image_name = self.image_arr[index]
         # Open image
-        npimg = load(single_image_name, allow_pickle=True).astype(np.float32)
-        if npimg.max() > 65500 or npimg.min() < -65500:
-            index = index - 1
-            single_image_name = self.image_arr[index]
-            npimg = load(single_image_name, allow_pickle=True).astype(np.float32)
-        # Transform image to tensor.
-        img_as_tensor = self.to_tensor(npimg).type(torch.FloatTensor)
+        img_as_img = Image.open(single_image_name)
+	    # data augmentation
+        npimg = np.array(img_as_img)
+        transformed = cropandflip(npimg)
+        # Transform image to tensor
+        img_as_tensor = self.to_tensor(transformed)
         # Get label(class) of the image based on the cropped pandas column
         single_image_label = self.label_arr[index]
 
@@ -109,10 +97,10 @@ def train(trainloader, epoch):
     correct = 0
     total = 0
     for batch_idx, (inputs, targets) in enumerate(trainloader):
-        #print(inputs.shape)
         inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
         outputs = net(inputs)
+        #values, indices = outputs.max(0)
         loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()
@@ -145,7 +133,7 @@ def test(testloader, epoch, pitch):
             correct += predicted.eq(targets).sum().item()
             softmax = nn.Softmax()
             for m in range(outputs.size(0)):
-                score.append([softmax(outputs[m])[1].item(), targets[m].item()])
+                score.append((softmax(outputs[m])[1].item(), targets[m].item()))
             print(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                 % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
@@ -158,47 +146,28 @@ def test(testloader, epoch, pitch):
             'acc': acc,
             'epoch': epoch,
         }
-        if not os.path.isdir('checkpoint_sens' ):
-            os.mkdir('checkpoint_sens' )
-        torch.save(state, './checkpoint_sens/ckpt_%d.t7' % epoch)
-        torch.save(state, './checkpoint_sens/ckpt.t7' )
+        if not os.path.isdir('checkpoint_%dmm_regression' % pitch):
+            os.mkdir('checkpoint_%dmm_regression' % pitch)
+        torch.save(state, './checkpoint_%dmm_regression/ckpt.t7' % pitch)
         best_acc = acc
     return test_loss/len(testloader), 100.*correct/total, score
 
-def TagEvent(event):
-    global best_acc
-    net.eval()
-    npimg = load(event , allow_pickle=True).astype(np.float32)
-    #npimg = (npimg - npimg.min())/(npimg.max() - npimg.min())
-    # Transform image to tensor
-    img_as_tensor = self.to_tensor(npimg).type(torch.FloatTensor)
-    img_as_tensor = torch.unsqueeze(img_as_tensor, 0)
-    softmax = nn.Softmax()
-    with torch.no_grad():
-        img_as_tensor = img_as_tensor.to(device)
-        output = net(img_as_tensor)
-        #print(output.shape)
-        #print(softmax(output)[0][1].item())
-        return softmax(output[0])[1].item()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch nEXO background rejection')
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-    parser.add_argument('--tag', '-t', action='store_true', default=False, help='tag event with trained network')
     parser.add_argument('--pitch', '-p', type=int, default=3, help='pad pitch')
-    parser.add_argument('--start', '-s', type=int, default=0, help='start epoch')
-    parser.add_argument('--csv', '-c', type=str, default='image2dcharge_sens.csv', help='csv files of training sample')
-
     args = parser.parse_args()
     transformations = transforms.Compose([transforms.ToTensor()])
     # Data
     print('==> Preparing data..')
-    nEXODataset = nEXODatasetFromImages(args.csv)
+    nEXODataset = nEXODatasetFromImages('image2dcharge_%dmm.csv'% args.pitch)
+
     # Creating data indices for training and validation splits:
     dataset_size = len(nEXODataset)
     indices = list(range(dataset_size))
-    validation_split = .15
+    validation_split = .2
     split = int(np.floor(validation_split * dataset_size))
     shuffle_dataset = True
     random_seed= 42
@@ -210,8 +179,8 @@ if __name__ == "__main__":
     # Creating PT data samplers and loaders:
     train_sampler = SubsetRandomSampler(train_indices)
     validation_sampler = SubsetRandomSampler(val_indices)
-    train_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=400, sampler=train_sampler, num_workers=4)
-    validation_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=400, sampler=validation_sampler, num_workers=4)
+    train_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=100, sampler=train_sampler)
+    validation_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=100, sampler=validation_sampler)
 
     lr = 1.0e-3
     momentum = 0.9
@@ -222,48 +191,27 @@ if __name__ == "__main__":
     epochs      = 100
 
     print('==> Building model..')
-    net = resnet_example.resnet18(pretrained=False, num_classes=2, input_channels=3)
+    net = resnet_example.resnet18(pretrained=False, num_classes=300, input_channels=3)
     # define loss function (criterion) and optimizer
-    criterion = nn.CrossEntropyLoss().cuda()
+    #criterion = nn.MSELoss().cuda()
     # We use SGD
-    optimizer = torch.optim.SGD(net.parameters(), lr, momentum=momentum, weight_decay=weight_decay)
+    #optimizer = torch.optim.SGD(net.parameters(), lr, momentum=momentum, weight_decay=weight_decay)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
 
     if device == 'cuda':
-        net = torch.nn.DataParallel(net, device_ids=device_ids)
+        net = torch.nn.DataParallel(net)
         cudnn.benchmark = True
 
     net = net.to(device)
-    if args.resume and os.path.exists('./checkpoint_sens/ckpt.t7'):
+    if args.resume:
         # Load checkpoint.
         print('==> Resuming from checkpoint..')
-        assert os.path.isdir('checkpoint_sens'), 'Error: no checkpoint directory found!'
-        if device == 'cuda':
-            checkpoint = torch.load('./checkpoint_sens/ckpt.t7' )
-        else:
-            checkpoint = torch.load('./checkpoint_sens/ckpt.t7', map_location=torch.device('cpu') )
+        assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
+        checkpoint = torch.load('./checkpoint_%dmm_regression/ckpt.t7' % args.pitch)
         net.load_state_dict(checkpoint['net'])
         best_acc = checkpoint['acc']
-        start_epoch = checkpoint['epoch'] + 1
-    if args.tag:
-        # Use trained network to tag event.
-        print('==> Load the network from checkpoint..')
-        assert os.path.isdir('checkpoint_sens'), 'Error: no checkpoint directory found!'
-        if device == 'cuda':
-            checkpoint = torch.load('./checkpoint_sens/ckpt.t7' )
-        else:
-            checkpoint = torch.load('./checkpoint_sens/ckpt.t7', map_location=torch.device('cpu') )
-        net.load_state_dict(checkpoint['net'])
-        import glob
-        files = glob.glob('tl208/*')
-        tags_bb0n = []
-        tagresult = open('quicktest.txt', 'w')
-        for exfile in files:
-            extag = TagEvent(exfile)
-            tagresult.write("%s %f\n" % (exfile, extag))
-            tags_bb0n.append(extag)
-
-        plt.hist(np.array(tags_bb0n), bins = np.linspace(0, 1, 100))
-        plt.savefig('gamma_tag.pdf')
+        start_epoch = checkpoint['epoch']
 
     x = np.linspace(start_epoch,start_epoch + 100,1)
     # numpy arrays for loss and accuracy
@@ -272,13 +220,14 @@ if __name__ == "__main__":
     y_valid_loss = np.zeros(100)
     y_valid_acc  = np.zeros(100)
     test_score = []
-    for epoch in range(start_epoch, start_epoch + 1):
+    for epoch in range(0,15):
+
         # set the learning rate
         adjust_learning_rate(optimizer, epoch, lr)
         iterout = "Epoch [%d]: "%(epoch)
         for param_group in optimizer.param_groups:
             iterout += "lr=%.3e"%(param_group['lr'])
-            print(iterout)
+            print iterout
             try:
                 train_ave_loss, train_ave_acc = train(train_loader, epoch)
             except Exception,e:
@@ -304,7 +253,5 @@ if __name__ == "__main__":
             test_score.append(score)
             y_valid_loss[epoch] = valid_loss
             y_valid_acc[epoch]  = prec1
-    print(y_train_loss, y_train_acc, y_valid_loss, y_valid_acc)
-    np.save('test_score_%d.npy' % (start_epoch + 1), test_score)
-    #pickle_dump = (y_train_loss, y_train_acc, y_valid_loss, y_valid_acc, test_score)
-    #pickle.dump( pickle_dump, open( "save_sens_%d.p" % start_epoch + 1, "wb" ) )
+    pickle_dump = (y_train_loss, y_train_acc, y_valid_loss, y_valid_acc, test_score)
+    pickle.dump( pickle_dump, open( "save_%dmm_regression.p" % args.pitch, "wb" ) )
