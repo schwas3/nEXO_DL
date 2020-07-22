@@ -212,18 +212,12 @@ if __name__ == "__main__":
                       len(train_loader), cost))
             print(s)
 
+        net.eval()
+        with torch.set_grad_enabled(False):  # save memory during inference
+            test_mae, test_mse = compute_mae_and_mse(net, validation_loader,
+                                                  device=device)
+
+            s = 'MAE/RMSE: | Test: %.2f/%.2f' % (test_mae, torch.sqrt(test_mse))
+            print(s)
     s = 'Time elapsed: %.2f min' % ((time.time() - start_time)/60)
-    print(s)
-    net.eval()
-    with torch.set_grad_enabled(False):  # save memory during inference
-        train_mae, train_mse = compute_mae_and_mse(net, train_loader,
-                                                  device=device)
-        test_mae, test_mse = compute_mae_and_mse(net, validation_loader,
-                                                  device=device)
-
-        s = 'MAE/RMSE: | Train: %.2f/%.2f | Test: %.2f/%.2f' % (
-            train_mae, torch.sqrt(train_mse), test_mae, torch.sqrt(test_mse))
-        print(s)
-
-    s = 'Total Training Time: %.2f min' % ((time.time() - start_time)/60)
     print(s)
