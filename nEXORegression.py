@@ -26,7 +26,7 @@ device = 'cuda' #if torch.cuda.is_available() else 'cpu'
 best_acc = 10000  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 NUM_CLASSES = 1000
-NUM_EPOCHS = 100
+NUM_EPOCHS = 10
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
     lr = lr
@@ -189,13 +189,13 @@ if __name__ == "__main__":
     if args.resume:
         # Load checkpoint.
         print('==> Resuming from checkpoint..')
-        assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
+        assert os.path.isdir('checkpoint_regression'), 'Error: no checkpoint directory found!'
         checkpoint = torch.load('./checkpoint_regression/ckpt.t7' )
         net.load_state_dict(checkpoint['net'])
         best_acc = checkpoint['acc']
         start_epoch = checkpoint['epoch']
     start_time = time.time()
-    for epoch in range(NUM_EPOCHS):
+    for epoch in range(start_epoch, start_epoch + NUM_EPOCHS):
         net.train()
         for batch_idx, (features, targets, levels) in enumerate(train_loader):
             features = features.to(device)
@@ -235,10 +235,10 @@ if __name__ == "__main__":
                     'acc': acc,
                     'epoch': epoch,
                 }
-                if not os.path.isdir('checkpoint_sens' ):
-                    os.mkdir('checkpoint_sens' )
-                torch.save(state, './checkpoint_sens/ckpt_%d.t7' % epoch)
-                torch.save(state, './checkpoint_sens/ckpt.t7' )
+                if not os.path.isdir('checkpoint_regression' ):
+                    os.mkdir('checkpoint_regression' )
+                torch.save(state, './checkpoint_regression/ckpt_%d.t7' % epoch)
+                torch.save(state, './checkpoint_regression/ckpt.t7' )
                 best_acc = acc
 
     s = 'Time elapsed: %.2f min' % ((time.time() - start_time)/60)
