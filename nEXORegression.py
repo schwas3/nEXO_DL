@@ -6,7 +6,6 @@
 import time
 import pandas as pd
 import numpy as np
-from PIL import Image
 
 import torch
 import torch.nn as nn
@@ -14,8 +13,6 @@ from torchvision import transforms
 from torchvision import models
 from torch.utils.data.dataset import Dataset  # For custom datasets
 from torch.utils.data.sampler import SubsetRandomSampler
-import os
-import shutil
 
 import torch.optim as optim
 import torch.nn.functional as F
@@ -23,15 +20,10 @@ import torch.backends.cudnn as cudnn
 from torch.optim import lr_scheduler
 
 import argparse
-import resnet_example
-import traceback
-#import matplotlib.pyplot as plt
-import pickle
 
 device = 'cuda' #if torch.cuda.is_available() else 'cpu'
 best_acc = 10000  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
-epochs = 200
 NUM_CLASSES = 1000
 NUM_EPOCHS = 100
 def adjust_learning_rate(optimizer, epoch, lr):
@@ -181,7 +173,6 @@ if __name__ == "__main__":
     batchsize = 50
     batchsize_valid = 500
     start_epoch = 0
-    epochs      = 100
 
     print('==> Building model..')
     net = AlexNet(NUM_CLASSES)
