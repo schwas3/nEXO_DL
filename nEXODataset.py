@@ -6,10 +6,10 @@
 
 import pandas as pd
 import numpy as np
-#from PIL import Image
 from numpy import load
 import scipy.misc
 from scipy.special import exp10
+import os
 
 import torch
 import torch.nn as nn
