@@ -2,8 +2,8 @@
 # coding: utf-8
 
 #Dataset code copied from https://github.com/utkuozbulak/pytorch-custom-dataset-examples
-#model code copied from https://github.com/DeepLearnPhysics/pytorch-uresnet
 
+import time
 import pandas as pd
 import numpy as np
 from PIL import Image
@@ -11,6 +11,7 @@ from PIL import Image
 import torch
 import torch.nn as nn
 from torchvision import transforms
+from torchvision import models
 from torch.utils.data.dataset import Dataset  # For custom datasets
 from torch.utils.data.sampler import SubsetRandomSampler
 import os
@@ -28,10 +29,11 @@ import traceback
 import pickle
 
 device = 'cuda' #if torch.cuda.is_available() else 'cpu'
-best_acc = 0  # best test accuracy
+best_acc = 10000  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 epochs = 200
-
+NUM_CLASSES = 1000
+NUM_EPOCHS = 100
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
     lr = lr
@@ -39,18 +41,74 @@ def adjust_learning_rate(optimizer, epoch, lr):
         param_group['lr'] = lr
 
 def cropandflip(npimg2d):
-    imgpad  = np.zeros( (200,255), dtype=np.float32 )
-    transformimg = np.zeros( (200,255, 3), dtype=np.float32)
-    flip1 = np.random.rand()
-    flip2 = np.random.rand()
+    transformimg = np.zeros( (96, 1024, 3), dtype=np.float32)
     for i in range(3):
-        imgpad[:,:] = npimg2d[ :,:,i]
-        if flip1>0.5:
-            imgpad = np.flip( imgpad, 0 )
-        if flip2>0.5:
-            imgpad = np.flip( imgpad, 1 )
-        transformimg[:,:,i] = imgpad[:,:]
+        transformimg[24:72,:,i] = npimg2d[:,:,i]
     return transformimg
+
+class AlexNet(nn.Module):
+    def __init__(self, num_classes):
+        super(AlexNet, self).__init__()
+        self.num_classes = num_classes
+        self.features = nn.Sequential(
+             nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),
+             nn.ReLU(inplace=True),
+             nn.MaxPool2d(kernel_size=3, stride=2),
+             nn.Conv2d(64, 192, kernel_size=5, padding=2),
+             nn.ReLU(inplace=True),
+             nn.MaxPool2d(kernel_size=3, stride=2),
+             nn.Conv2d(192, 384, kernel_size=3, padding=1),
+             nn.ReLU(inplace=True),
+             nn.Conv2d(384, 256, kernel_size=3, padding=1),
+             nn.ReLU(inplace=True),
+             nn.Conv2d(256, 256, kernel_size=3, padding=1),
+             nn.ReLU(inplace=True),
+             nn.MaxPool2d(kernel_size=3, stride=2),
+             )
+        self.avgpool = nn.AdaptiveAvgPool2d((6, 6))
+        self.classifier = nn.Sequential(
+             nn.Dropout(0.5),
+             nn.Linear(256 * 6 * 6, 4096),
+             nn.ReLU(inplace=True),
+             nn.Dropout(0.5),
+             nn.Linear(4096, 4096),
+             nn.ReLU(inplace=True),
+             )
+
+        self.fc = nn.Linear(4096, (self.num_classes-1)*2)
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.avgpool(x)
+        x = x.view(x.size(0), 256 * 6 * 6)
+        x = self.classifier(x)
+        logits = self.fc(x)
+        logits = logits.view(-1, (self.num_classes-1), 2)
+        probas = F.softmax(logits, dim=2)[:, :, 1]
+        return logits, probas
+
+def cost_fn(logits, levels):
+    val = (-torch.sum((F.log_softmax(logits, dim=2)[:, :, 1]*levels
+            + F.log_softmax(logits, dim=2)[:, :, 0]*(1-levels)), dim=1))
+    return torch.mean(val)
+
+def compute_mae_and_mse(net, data_loader, device):
+    mae, mse, num_examples = 0, 0, 0
+    for i, (features, targets, levels) in enumerate(data_loader):
+        features = features.to(device)
+        targets = targets.to(device)
+
+        logits, probas = net(features)
+        predict_levels = probas > 0.5
+        predicted_labels = torch.sum(predict_levels, dim=1)
+        num_examples += targets.size(0)
+        print(predicted_labels, targets)
+        mae += torch.sum(torch.abs(predicted_labels - targets))
+        mse += torch.sum((predicted_labels - targets)**2)
+    mae = mae.float() / num_examples
+    mse = mse.float() / num_examples
+    return mae, mse
+
 
 class nEXODatasetFromImages(Dataset):
     def __init__(self, csv_path):
@@ -75,94 +133,29 @@ class nEXODatasetFromImages(Dataset):
         # Get image name from the pandas df
         single_image_name = self.image_arr[index]
         # Open image
-        img_as_img = Image.open(single_image_name)
-	    # data augmentation
-        npimg = np.array(img_as_img)
+        npimg = np.load(single_image_name, allow_pickle=True).astype(np.float32)
         transformed = cropandflip(npimg)
         # Transform image to tensor
         img_as_tensor = self.to_tensor(transformed)
         # Get label(class) of the image based on the cropped pandas column
         single_image_label = self.label_arr[index]
+        levels = [1]*single_image_label + [0]*(NUM_CLASSES - 1 - single_image_label)
+        levels = torch.tensor(levels, dtype=torch.float32)
 
-        return (img_as_tensor, single_image_label)
+        return img_as_tensor, single_image_label, levels
 
     def __len__(self):
         return self.data_len
-
-# Training
-def train(trainloader, epoch):
-    print('\nEpoch: %d' % epoch)
-    net.train()
-    train_loss = 0
-    correct = 0
-    total = 0
-    for batch_idx, (inputs, targets) in enumerate(trainloader):
-        inputs, targets = inputs.to(device), targets.to(device)
-        optimizer.zero_grad()
-        outputs = net(inputs)
-        #values, indices = outputs.max(0)
-        loss = criterion(outputs, targets)
-        loss.backward()
-        optimizer.step()
-
-        train_loss += loss.item()
-        _, predicted = outputs.max(1)
-        total += targets.size(0)
-        correct += predicted.eq(targets).sum().item()
-
-        print(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-            % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
-    return train_loss/len(trainloader), 100.*correct/total
-
-def test(testloader, epoch, pitch):
-    global best_acc
-    net.eval()
-    test_loss = 0
-    correct = 0
-    total = 0
-    score = []
-    with torch.no_grad():
-        for batch_idx, (inputs, targets) in enumerate(testloader):
-            inputs, targets = inputs.to(device), targets.to(device)
-            outputs = net(inputs)
-            loss = criterion(outputs, targets)
-
-            test_loss += loss.item()
-            _, predicted = outputs.max(1)
-            total += targets.size(0)
-            correct += predicted.eq(targets).sum().item()
-            softmax = nn.Softmax()
-            for m in range(outputs.size(0)):
-                score.append((softmax(outputs[m])[1].item(), targets[m].item()))
-            print(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
-
-    # Save checkpoint.
-    acc = 100.*correct/total
-    if acc > best_acc:
-        print('Saving..')
-        state = {
-            'net': net.state_dict(),
-            'acc': acc,
-            'epoch': epoch,
-        }
-        if not os.path.isdir('checkpoint_%dmm_regression' % pitch):
-            os.mkdir('checkpoint_%dmm_regression' % pitch)
-        torch.save(state, './checkpoint_%dmm_regression/ckpt.t7' % pitch)
-        best_acc = acc
-    return test_loss/len(testloader), 100.*correct/total, score
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch nEXO background rejection')
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-    parser.add_argument('--pitch', '-p', type=int, default=3, help='pad pitch')
     args = parser.parse_args()
     transformations = transforms.Compose([transforms.ToTensor()])
     # Data
     print('==> Preparing data..')
-    nEXODataset = nEXODatasetFromImages('image2dcharge_%dmm.csv'% args.pitch)
+    nEXODataset = nEXODatasetFromImages('image2dcharge_sens.csv')
 
     # Creating data indices for training and validation splits:
     dataset_size = len(nEXODataset)
@@ -179,8 +172,8 @@ if __name__ == "__main__":
     # Creating PT data samplers and loaders:
     train_sampler = SubsetRandomSampler(train_indices)
     validation_sampler = SubsetRandomSampler(val_indices)
-    train_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=100, sampler=train_sampler)
-    validation_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=100, sampler=validation_sampler)
+    train_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=200, sampler=train_sampler, num_workers=4)
+    validation_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=200, sampler=validation_sampler, num_workers=4)
 
     lr = 1.0e-3
     momentum = 0.9
@@ -191,14 +184,8 @@ if __name__ == "__main__":
     epochs      = 100
 
     print('==> Building model..')
-    net = resnet_example.resnet18(pretrained=False, num_classes=300, input_channels=3)
-    # define loss function (criterion) and optimizer
-    #criterion = nn.MSELoss().cuda()
-    # We use SGD
-    #optimizer = torch.optim.SGD(net.parameters(), lr, momentum=momentum, weight_decay=weight_decay)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
-
+    net = AlexNet(NUM_CLASSES)
+    optimizer = torch.optim.Adam(net.parameters(), lr = lr)
     if device == 'cuda':
         net = torch.nn.DataParallel(net)
         cudnn.benchmark = True
@@ -208,50 +195,44 @@ if __name__ == "__main__":
         # Load checkpoint.
         print('==> Resuming from checkpoint..')
         assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
-        checkpoint = torch.load('./checkpoint_%dmm_regression/ckpt.t7' % args.pitch)
+        checkpoint = torch.load('./checkpoint_regression/ckpt.t7' )
         net.load_state_dict(checkpoint['net'])
         best_acc = checkpoint['acc']
         start_epoch = checkpoint['epoch']
+    start_time = time.time()
+    for epoch in range(NUM_EPOCHS):
+        net.train()
+        for batch_idx, (features, targets, levels) in enumerate(train_loader):
+            features = features.to(device)
+            targets = targets
+            targets = targets.to(device)
+            levels = levels.to(device)
 
-    x = np.linspace(start_epoch,start_epoch + 100,1)
-    # numpy arrays for loss and accuracy
-    y_train_loss = np.zeros(100)
-    y_train_acc  = np.zeros(100)
-    y_valid_loss = np.zeros(100)
-    y_valid_acc  = np.zeros(100)
-    test_score = []
-    for epoch in range(0,15):
+            # FORWARD AND BACK PROP
+            logits, probas = net(features)
+            cost = cost_fn(logits, levels)
+            optimizer.zero_grad()
+            cost.backward()
+            # UPDATE MODEL PARAMETERS
+            optimizer.step()
+            # LOGGING
+            s = ('Epoch: %03d/%03d | Batch %04d/%04d | Cost: %.4f'
+                    % (epoch+1, NUM_EPOCHS, batch_idx,
+                      len(train_loader), cost))
+            print(s)
 
-        # set the learning rate
-        adjust_learning_rate(optimizer, epoch, lr)
-        iterout = "Epoch [%d]: "%(epoch)
-        for param_group in optimizer.param_groups:
-            iterout += "lr=%.3e"%(param_group['lr'])
-            print iterout
-            try:
-                train_ave_loss, train_ave_acc = train(train_loader, epoch)
-            except Exception,e:
-                print "Error in training routine!"
-                print e.message
-                print e.__class__.__name__
-                traceback.print_exc(e)
-                break
-            print "Epoch [%d] train aveloss=%.3f aveacc=%.3f"%(epoch,train_ave_loss,train_ave_acc)
-            y_train_loss[epoch] = train_ave_loss
-            y_train_acc[epoch]  = train_ave_acc
+    s = 'Time elapsed: %.2f min' % ((time.time() - start_time)/60)
+    print(s)
+    net.eval()
+    with torch.set_grad_enabled(False):  # save memory during inference
+        train_mae, train_mse = compute_mae_and_mse(net, train_loader,
+                                                  device=device)
+        test_mae, test_mse = compute_mae_and_mse(net, validation_loader,
+                                                  device=device)
 
-            # evaluate on validationset
-            try:
-                valid_loss,prec1, score = test(validation_loader, epoch, args.pitch)
-            except Exception,e:
-                print "Error in validation routine!"
-                print e.message
-                print e.__class__.__name__
-                traceback.print_exc(e)
-                break
-            print "Test[%d]:Result* Prec@1 %.3f\tLoss %.3f"%(epoch,prec1,valid_loss)
-            test_score.append(score)
-            y_valid_loss[epoch] = valid_loss
-            y_valid_acc[epoch]  = prec1
-    pickle_dump = (y_train_loss, y_train_acc, y_valid_loss, y_valid_acc, test_score)
-    pickle.dump( pickle_dump, open( "save_%dmm_regression.p" % args.pitch, "wb" ) )
+        s = 'MAE/RMSE: | Train: %.2f/%.2f | Test: %.2f/%.2f' % (
+            train_mae, torch.sqrt(train_mse), test_mae, torch.sqrt(test_mse))
+        print(s)
+
+    s = 'Total Training Time: %.2f min' % ((time.time() - start_time)/60)
+    print(s)
