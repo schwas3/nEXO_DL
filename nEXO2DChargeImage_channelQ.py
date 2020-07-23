@@ -45,7 +45,7 @@ def read3dimage(rootfile):
                             samplet = 512 + (m-512)*2
                         if samplet >= 1024 or samplet >= len(fxwf[k]):
                             break
-                        image_2dcharge[H, m, 0] += fxwf[k][samplet]
+                        image_2dcharge[H, m, 0] += fxwf[k][len(fxwf[k]) - 1 - samplet]
             for k in range(len(ycharge)):
                 posk = yposition[k]
                 tilek = ytile[k]
@@ -61,7 +61,7 @@ def read3dimage(rootfile):
                             samplet = 512 + (m-512)*2
                         if samplet >= 1024 or samplet >= len(fywf[k]):
                             break
-                        image_2dcharge[H, m, 1] += fywf[k][samplet]
+                        image_2dcharge[H, m, 1] += fywf[k][len(fywf[k]) - 1 - samplet]
             np.save('./channelq_npy/%s_channelQ_%d_x%d_%f.npy' % (rootfile, i, j, xcharge[j]) , image_2dcharge)
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Root file to process.')
