@@ -6,10 +6,10 @@ with open('image2dcharge_sens.csv', 'w') as csvfile:
     fieldnames = ['filename', 'label']
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
-    filelist = glob.glob('/home/zl423/project/dlphysics/nEXO_energy/channelq_npy/*npy')
+    filelist = glob.glob('/home/zl423/project/dlphysics/nEXO_DL_git/channelq_npy/*npy')
     maxlabel = 0
     for img in filelist:
-        label = int(float(img[:-4].split('_')[-1])/135)
+        label = int(float(img[:-4].split('_')[-1])/136)
         if label > maxlabel:
             maxlabel = label
         writer.writerow({'filename': img, 'label': label})
