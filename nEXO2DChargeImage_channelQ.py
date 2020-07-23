@@ -62,7 +62,7 @@ def read3dimage(rootfile):
                         if samplet >= 1024 or samplet >= len(fywf[k]):
                             break
                         image_2dcharge[H, m, 1] += fywf[k][samplet]
-            np.save('./channelq_npy/channelQ_%d_x%d_%f.npy' % (i, j, xcharge[j]) , image_2dcharge)
+            np.save('./channelq_npy/%s_channelQ_%d_x%d_%f.npy' % (rootfile, i, j, xcharge[j]) , image_2dcharge)
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Root file to process.')
     parser.add_argument('--rootfile', type=str)
