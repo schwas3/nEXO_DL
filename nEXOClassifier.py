@@ -272,7 +272,7 @@ if __name__ == "__main__":
     y_valid_loss = np.zeros(100)
     y_valid_acc  = np.zeros(100)
     test_score = []
-    for epoch in range(start_epoch, start_epoch + 1):
+    for epoch in range(start_epoch, start_epoch + 10):
         # set the learning rate
         adjust_learning_rate(optimizer, epoch, lr)
         iterout = "Epoch [%d]: "%(epoch)
@@ -281,26 +281,26 @@ if __name__ == "__main__":
             print(iterout)
             try:
                 train_ave_loss, train_ave_acc = train(train_loader, epoch)
-            except Exception,e:
-                print "Error in training routine!"
-                print e.message
-                print e.__class__.__name__
+            except Exception as e:
+                print("Error in training routine!")
+                print(e.message)
+                print(e.__class__.__name__)
                 traceback.print_exc(e)
                 break
-            print "Epoch [%d] train aveloss=%.3f aveacc=%.3f"%(epoch,train_ave_loss,train_ave_acc)
+            print("Epoch [%d] train aveloss=%.3f aveacc=%.3f"%(epoch,train_ave_loss,train_ave_acc))
             y_train_loss[epoch] = train_ave_loss
             y_train_acc[epoch]  = train_ave_acc
 
             # evaluate on validationset
             try:
                 valid_loss,prec1, score = test(validation_loader, epoch, args.pitch)
-            except Exception,e:
-                print "Error in validation routine!"
-                print e.message
-                print e.__class__.__name__
+            except Exception as e:
+                print("Error in validation routine!")
+                print(e.message)
+                print(e.__class__.__name__)
                 traceback.print_exc(e)
                 break
-            print "Test[%d]:Result* Prec@1 %.3f\tLoss %.3f"%(epoch,prec1,valid_loss)
+            print("Test[%d]:Result* Prec@1 %.3f\tLoss %.3f"%(epoch,prec1,valid_loss))
             test_score.append(score)
             y_valid_loss[epoch] = valid_loss
             y_valid_acc[epoch]  = prec1
