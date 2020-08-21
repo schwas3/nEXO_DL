@@ -52,7 +52,7 @@ def SaveNumpy(rootfile, npdir):
                     if samplet >= len(row['fElecChannels.fWFAmplitude'][index]):
                         continue
                     else:
-                        npimg[H, W, ch] = row['fElecChannels.fWFAmplitude'][index][samplet]
+                        npimg[H, W, ch] = row['fElecChannels.fWFAmplitude'][index][samplet] + row['fElecChannels.fNoiseWF'][index][samplet]
         np.save('%s/%s_%d.npy' % (npdir, os.path.basename(rootfile), i), npimg)
 
 
