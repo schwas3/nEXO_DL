@@ -126,7 +126,7 @@ def train(trainloader, epoch):
             % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
     return train_loss/len(trainloader), 100.*correct/total
 
-def test(testloader, epoch, pitch):
+def test(testloader, epoch):
     global best_acc
     net.eval()
     test_loss = 0
@@ -186,7 +186,7 @@ if __name__ == "__main__":
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument('--tag', '-t', action='store_true', default=False, help='tag event with trained network')
-    parser.add_argument('--pitch', '-p', type=int, default=3, help='pad pitch')
+    parser.add_argument('--channels', '-p', type=int, default=3, help='Input Channels')
     parser.add_argument('--start', '-s', type=int, default=0, help='start epoch')
     parser.add_argument('--csv', '-c', type=str, default='image2dcharge_sens.csv', help='csv files of training sample')
 
@@ -293,7 +293,7 @@ if __name__ == "__main__":
 
             # evaluate on validationset
             try:
-                valid_loss,prec1, score = test(validation_loader, epoch, args.pitch)
+                valid_loss,prec1, score = test(validation_loader, epoch)
             except Exception as e:
                 print("Error in validation routine!")
                 print(e.message)
