@@ -7,7 +7,7 @@ import os
 def SaveNumpy(rootfile, npdir):
     print(rootfile, npdir)
     if not os.path.exists(npdir):
-        os.sys('mkdir %s' % npdir)
+        os.mkdir(npdir)
     input_TFile = up.open(rootfile)
     elecEvent_TTree = input_TFile['Event/Elec/ElecEvent']
     elec_columns_to_get = [ 'fElecChannels.fChannelCharge',\
@@ -23,7 +23,7 @@ def SaveNumpy(rootfile, npdir):
         xpos = []
         ypos = []
         indices = []
-        npimg = np.zeros((8, 224, 224), dtype=np.float16)
+        npimg = np.zeros((224, 224, 8), dtype=np.float16)
         for j in range(len(row['fElecChannels.fChannelCharge'])):
             if row['fElecChannels.fChannelCharge'][j] and row['fElecChannels.fChannelNoiseTag'][j] ==0:
                 xpos.append(row['fElecChannels.fXPosition'][j])
@@ -40,18 +40,19 @@ def SaveNumpy(rootfile, npdir):
             ymax = max(ypos)
             ymin = min(ypos)
 
-        if xmax - xmin > 15*12 or ymax - ymin > 15*12:
+        if xmax - xmin > 14*12 or ymax - ymin > 14*12:
             print('skip large size event')
             continue
         for x, y, index in zip(xpos, ypos, indices):
             H = int((x - xmin)/12 + (y - ymin)/12*15)
+            print(x, y, xmin, ymin, H)
             for ch in range(8):
                 for W in range(224):
                     samplet = W + 224*ch
                     if samplet >= len(row['fElecChannels.fWFAmplitude'][index]):
                         continue
                     else:
-                        npimg[ch, H, W] = row['fElecChannels.fWFAmplitude'][index][samplet]
+                        npimg[H, W, ch] = row['fElecChannels.fWFAmplitude'][index][samplet]
         np.save('%s/%s_%d.npy' % (npdir, os.path.basename(rootfile), i), npimg)
 
 
