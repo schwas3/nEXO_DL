@@ -222,7 +222,7 @@ if __name__ == "__main__":
     epochs      = 100
 
     print('==> Building model..')
-    net = resnet_example.resnet18(pretrained=False, num_classes=2, input_channels=3)
+    net = resnet_example.resnet18(pretrained=False, num_classes=2, input_channels=args.channels)
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
     # We use SGD
