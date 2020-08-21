@@ -40,12 +40,12 @@ def SaveNumpy(rootfile, npdir):
             ymax = max(ypos)
             ymin = min(ypos)
 
-        if xmax - xmin > 14*12 or ymax - ymin > 14*12:
+        Hmax = int((xmax - xmin)/12 + (ymax-ymin)/12*15)
+        if Hmax > 223:
             print('skip large size event')
             continue
         for x, y, index in zip(xpos, ypos, indices):
             H = int((x - xmin)/12 + (y - ymin)/12*15)
-            print(x, y, xmin, ymin, H)
             for ch in range(8):
                 for W in range(224):
                     samplet = W + 224*ch
