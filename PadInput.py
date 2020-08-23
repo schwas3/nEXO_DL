@@ -23,7 +23,7 @@ def SaveNumpy(rootfile, npdir):
         xpos = []
         ypos = []
         indices = []
-        npimg = np.zeros((224, 224, 8), dtype=np.float16)
+        npimg = np.zeros((224, 224, 12), dtype=np.float16)
         for j in range(len(row['fElecChannels.fChannelCharge'])):
             if row['fElecChannels.fChannelCharge'][j] and row['fElecChannels.fChannelNoiseTag'][j] ==0:
                 xpos.append(row['fElecChannels.fXPosition'][j])
@@ -40,19 +40,20 @@ def SaveNumpy(rootfile, npdir):
             ymax = max(ypos)
             ymin = min(ypos)
 
-        Hmax = int((xmax - xmin)/12 + (ymax-ymin)/12*15)
-        if Hmax > 223:
+        if xmax - xmin > 11*12 or ymax - ymin > 11*12:
             print('skip large size event')
             continue
         for x, y, index in zip(xpos, ypos, indices):
-            H = int((x - xmin)/12 + (y - ymin)/12*15)
-            for ch in range(8):
+            ch = int((y - ymin)/12)
+            #print(x, y, xmin, ymin)
+            for tslice in range(10):
+                H = int((x-xmin)/12) + 20*tslice
                 for W in range(224):
-                    samplet = W + 224*ch
+                    samplet = W + 224*tslice
                     if samplet >= len(row['fElecChannels.fWFAmplitude'][index]):
                         continue
                     else:
-                        npimg[H, W, ch] = row['fElecChannels.fWFAmplitude'][index][samplet] + row['fElecChannels.fNoiseWF'][index][samplet]
+                        npimg[H, W, ch] = row['fElecChannels.fWFAmplitude'][index][-1-samplet] + row['fElecChannels.fNoiseWF'][index][-1-samplet]
         np.save('%s/%s_%d.npy' % (npdir, os.path.basename(rootfile), i), npimg)
 
 
@@ -61,4 +62,4 @@ if __name__ == '__main__':
     parser.add_argument('--eventtype', default='bb0n', type=str, help='Event Type')
     parser.add_argument('--num', default=1, type=int, help='File Number')
     args = parser.parse_args()
-    SaveNumpy('/home/zl423/scratch60/pad/%s%d.root' % (args.eventtype, args.num), '/home/zl423/scratch60/pad/%s%d' % (args.eventtype, args.num))
+    SaveNumpy('/home/zl423/scratch60/pad/rootfile/%s%d.root' % (args.eventtype, args.num), '/home/zl423/scratch60/pad/%s%d' % (args.eventtype, args.num))
