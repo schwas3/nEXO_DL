@@ -23,7 +23,7 @@ from torch.optim import lr_scheduler
 import argparse
 
 device = 'cuda' #if torch.cuda.is_available() else 'cpu'
-best_acc = 10000  # best test accuracy
+best_acc = 1000000  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 NUM_EPOCHS = 5
 def adjust_learning_rate(optimizer, epoch, lr):
@@ -192,6 +192,7 @@ if __name__ == "__main__":
     start_time = time.time()
     for epoch in range(start_epoch, start_epoch + NUM_EPOCHS):
         net.train()
+        total_loss = 0
         for batch_idx, (features, targets) in enumerate(train_loader):
             features = features.to(device)
             targets = targets
@@ -200,30 +201,39 @@ if __name__ == "__main__":
             # FORWARD AND BACK PROP
             outputs = net(features)
             loss = criterion(outputs, targets)
+            total_loss += loss
             optimizer.zero_grad()
-            print(loss.shape)
-            #loss.backward()
+            loss.backward()
             # UPDATE MODEL PARAMETERS
             optimizer.step()
             # LOGGING
             s = ('Epoch: %03d/%03d | Batch %04d/%04d | Loss: %.4f'
                     % (epoch+1, NUM_EPOCHS, batch_idx,
-                      len(train_loader), loss))
+                      len(train_loader), total_loss/(batch_idx+1)))
             print(s)
 
-        """
         net.eval()
         with torch.set_grad_enabled(False):  # save memory during inference
-            test_mae, test_mse , test_predicts, test_targets = compute_mae_and_mse(net,
-                                            validation_loader, device=device)
+            total_loss = 0
+            test_targets = []
+            test_predicts = []
+            for batch_idx, (features, targets) in enumerate(validation_loader):
+                features = features.to(device)
+                targets = targets
+                targets = targets.to(device)
+                outputs = net(features)
+                loss = criterion(outputs, targets)
+                total_loss += loss
+                test_targets.append(targets)
+                test_predicts.append(outputs)
 
-            s = 'MAE/RMSE: | Test: %.2f/%.2f' % (test_mae, torch.sqrt(test_mse))
+            s = 'RMSE: | Test: %.2f' % total_loss
             np.save('test_predicts_%d.npy' % epoch, np.array(test_predicts) )
             np.save('test_targets_%d.npy' % epoch, np.array(test_targets) )
 
             print(s)
             # Save checkpoint.
-            acc = test_mse
+            acc = total_loss
             if acc < best_acc:
                 print('Saving..')
                 state = {
@@ -236,6 +246,5 @@ if __name__ == "__main__":
                 torch.save(state, './checkpoint_regression/ckpt_%d.t7' % epoch)
                 torch.save(state, './checkpoint_regression/ckpt.t7' )
                 best_acc = acc
-        """
     s = 'Time elapsed: %.2f min' % ((time.time() - start_time)/60)
     print(s)

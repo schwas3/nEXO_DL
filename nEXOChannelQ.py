@@ -26,7 +26,7 @@ device = 'cuda' #if torch.cuda.is_available() else 'cpu'
 best_acc = 10000  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 NUM_CLASSES = 1000
-NUM_EPOCHS = 10
+NUM_EPOCHS = 5
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
     lr = lr

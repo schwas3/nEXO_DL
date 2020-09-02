@@ -62,7 +62,7 @@ def read3dimage(rootfile):
                         if samplet >= 1024 or samplet >= len(fywf[k]):
                             break
                         image_2dcharge[H, m, 1] += fywf[k][len(fywf[k]) - 1 - samplet]
-            np.save('./channelq_npy/%s_channelQ_%d_x%d_%f.npy' % (rootfile, i, j, xcharge[j]) , image_2dcharge)
+            np.save('./channelq_npy/%s_channelQ_%d_x%d_%f.npy' % (os.path.basename(rootfile), i, j, xcharge[j]) , image_2dcharge)
         #build image for y channels
         for j in range(len(ycharge)):
             posj = yposition[j]
@@ -102,7 +102,7 @@ def read3dimage(rootfile):
                         if samplet >= 1024 or samplet >= len(fxwf[k]):
                             break
                         image_2dcharge[H, m, 1] += fxwf[k][len(fxwf[k]) - 1 - samplet]
-            np.save('./channelq_npy/%s_channelQ_%d_y%d_%f.npy' % (rootfile, i, j, ycharge[j]) , image_2dcharge)
+            np.save('./channelq_npy/%s_channelQ_%d_y%d_%f.npy' % (os.path.basename(rootfile), i, j, ycharge[j]) , image_2dcharge)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Root file to process.')
