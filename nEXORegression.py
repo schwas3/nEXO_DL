@@ -33,9 +33,9 @@ def adjust_learning_rate(optimizer, epoch, lr):
         param_group['lr'] = lr
 
 def cropandflip(npimg2d):
-    transformimg = np.zeros( (96, 1024, 3), dtype=np.float32)
-    for i in range(3):
-        transformimg[24:72,:,i] = npimg2d[:,:,i]
+    transformimg = np.zeros( (240, 1024, 3), dtype=np.float32)
+    for i in range(2):
+        transformimg[:,:,i] = npimg2d[:,:,i]
     return transformimg
 
 class AlexNet(nn.Module):
@@ -62,11 +62,11 @@ class AlexNet(nn.Module):
              nn.Linear(256 * 6 * 6, 4096),
              nn.ReLU(inplace=True),
              nn.Dropout(0.5),
-             nn.Linear(4096, 4096),
+             nn.Linear(4096, 1024),
              nn.ReLU(inplace=True),
              )
 
-        self.fc = nn.Linear(4096, 1)
+        self.fc = nn.Linear(1024, 1)
 
     def forward(self, x):
         x = self.features(x)
@@ -75,32 +75,6 @@ class AlexNet(nn.Module):
         x = self.regression(x)
         logits = self.fc(x)
         return logits
-
-def cost_fn(logits, levels):
-    val = (-torch.sum((F.log_softmax(logits, dim=2)[:, :, 1]*levels
-            + F.log_softmax(logits, dim=2)[:, :, 0]*(1-levels)), dim=1))
-    return torch.mean(val)
-
-def compute_mae_and_mse(net, data_loader, device):
-    mae, mse, num_examples = 0, 0, 0
-    test_predicts = []
-    test_targets = []
-    for i, (features, targets, levels) in enumerate(data_loader):
-        features = features.to(device)
-        targets = targets.to(device)
-
-        logits, probas = net(features)
-        predict_levels = probas > 0.5
-        predicted_labels = torch.sum(predict_levels, dim=1)
-        num_examples += targets.size(0)
-        test_predicts.append(predicted_labels.cpu().numpy())
-        test_targets.append(targets.cpu().numpy())
-        mae += torch.sum(torch.abs(predicted_labels - targets))
-        mse += torch.sum((predicted_labels - targets)**2)
-    mae = mae.float() / num_examples
-    mse = mse.float() / num_examples
-    return mae, mse, test_predicts, test_targets
-
 
 class nEXODatasetFromImages(Dataset):
     def __init__(self, csv_path):
@@ -145,7 +119,7 @@ if __name__ == "__main__":
     transformations = transforms.Compose([transforms.ToTensor()])
     # Data
     print('==> Preparing data..')
-    nEXODataset = nEXODatasetFromImages('image2dcharge_sens.csv')
+    nEXODataset = nEXODatasetFromImages('image2dcharge_eventq.csv')
 
     # Creating data indices for training and validation splits:
     dataset_size = len(nEXODataset)
@@ -195,11 +169,12 @@ if __name__ == "__main__":
         total_loss = 0
         for batch_idx, (features, targets) in enumerate(train_loader):
             features = features.to(device)
-            targets = targets
-            targets = targets.to(device)
+            targets = targets.to(device).view(-1, 1)
 
             # FORWARD AND BACK PROP
             outputs = net(features)
+            if batch_idx == 0:
+                print(outputs, targets)
             loss = criterion(outputs, targets)
             total_loss += loss
             optimizer.zero_grad()
@@ -219,17 +194,18 @@ if __name__ == "__main__":
             test_predicts = []
             for batch_idx, (features, targets) in enumerate(validation_loader):
                 features = features.to(device)
-                targets = targets
-                targets = targets.to(device)
+                targets = targets.to(device).view(-1, 1)
                 outputs = net(features)
+                if batch_idx == 0:
+                    print(outputs, targets)
                 loss = criterion(outputs, targets)
                 total_loss += loss
                 test_targets.append(targets)
                 test_predicts.append(outputs)
 
             s = 'RMSE: | Test: %.2f' % total_loss
-            np.save('test_predicts_%d.npy' % epoch, np.array(test_predicts) )
-            np.save('test_targets_%d.npy' % epoch, np.array(test_targets) )
+            np.save('eventq_predicts_%d.npy' % epoch, np.array(test_predicts) )
+            np.save('eventq_targets_%d.npy' % epoch, np.array(test_targets) )
 
             print(s)
             # Save checkpoint.
