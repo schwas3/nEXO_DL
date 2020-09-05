@@ -88,32 +88,32 @@ def train(trainloader, epoch):
     print('\nEpoch: %d' % epoch)
     net.train()
     train_loss = 0
-    correct = 0
+    train_acc = 0
     total = 0
     for batch_idx, (inputs, targets) in enumerate(trainloader):
-        #print(inputs.shape)
         inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
         outputs = net(inputs)
         targets = targets.view(-1, 1)
+        for m in range(outputs.size(0)):
+            if np.absolute(outputs[m].item() -  targets[m].item())/targets[m].item() < 0.02:
+                train_acc += 1
         loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()
 
         train_loss += loss.item()
-        _, predicted = outputs.max(1)
         total += targets.size(0)
-        correct += predicted.eq(targets).sum().item()
 
-        print(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-            % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
-    return train_loss/len(trainloader), 100.*correct/total
+        print(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f'
+            % (train_loss/(batch_idx+1), train_acc/total) )
+    return train_loss/len(trainloader)
 
 def test(testloader, epoch):
     global best_acc
     net.eval()
     test_loss = 0
-    correct = 0
+    test_acc = 0
     total = 0
     score = []
     with torch.no_grad():
@@ -124,16 +124,16 @@ def test(testloader, epoch):
             loss = criterion(outputs, targets)
 
             test_loss += loss.item()
-            _, predicted = outputs.max(1)
             total += targets.size(0)
-            correct += predicted.eq(targets).sum().item()
             for m in range(outputs.size(0)):
                 score.append([outputs[m].item(), targets[m].item()])
-            print(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+                if np.absolute(outputs[m].item() -  targets[m].item())/targets[m].item() < 0.02:
+                    test_acc += 1
+            print(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f '
+                % (test_loss/(batch_idx+1), test_acc/total))
 
+    acc = test_acc/total
     # Save checkpoint.
-    acc = 100.*correct/total
     if acc > best_acc:
         print('Saving..')
         state = {
@@ -146,23 +146,18 @@ def test(testloader, epoch):
         torch.save(state, './checkpoint_sens/ckpt_%d.t7' % epoch)
         torch.save(state, './checkpoint_sens/ckpt.t7' )
         best_acc = acc
-    return test_loss/len(testloader), 100.*correct/total, score
+    return test_loss/len(testloader), score
 
 def TagEvent(event):
-    global best_acc
     net.eval()
     npimg = load(event , allow_pickle=True).astype(np.float32)
-    #npimg = (npimg - npimg.min())/(npimg.max() - npimg.min())
     # Transform image to tensor
     img_as_tensor = self.to_tensor(npimg).type(torch.FloatTensor)
     img_as_tensor = torch.unsqueeze(img_as_tensor, 0)
-    softmax = nn.Softmax()
     with torch.no_grad():
         img_as_tensor = img_as_tensor.to(device)
         output = net(img_as_tensor)
-        #print(output.shape)
-        #print(softmax(output)[0][1].item())
-        return softmax(output[0])[1].item()
+        return output[0].item()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch nEXO background rejection')
@@ -251,11 +246,9 @@ if __name__ == "__main__":
     x = np.linspace(start_epoch,start_epoch + 100,1)
     # numpy arrays for loss and accuracy
     y_train_loss = np.zeros(100)
-    y_train_acc  = np.zeros(100)
     y_valid_loss = np.zeros(100)
-    y_valid_acc  = np.zeros(100)
     test_score = []
-    for epoch in range(start_epoch, start_epoch + 10):
+    for epoch in range(start_epoch, start_epoch + 4):
         # set the learning rate
         adjust_learning_rate(optimizer, epoch, lr)
         iterout = "Epoch [%d]: "%(epoch)
@@ -263,29 +256,27 @@ if __name__ == "__main__":
             iterout += "lr=%.3e"%(param_group['lr'])
             print(iterout)
             try:
-                train_ave_loss, train_ave_acc = train(train_loader, epoch)
+                train_ave_los = train(train_loader, epoch)
             except Exception as e:
                 print("Error in training routine!")
                 print(e.message)
                 print(e.__class__.__name__)
                 traceback.print_exc(e)
                 break
-            print("Epoch [%d] train aveloss=%.3f aveacc=%.3f"%(epoch,train_ave_loss,train_ave_acc))
+            print("Epoch [%d] train aveloss=%.3f "%(epoch,train_ave_loss))
             y_train_loss[epoch] = train_ave_loss
-            y_train_acc[epoch]  = train_ave_acc
 
             # evaluate on validationset
             try:
-                valid_loss,prec1, score = test(validation_loader, epoch)
+                valid_loss, score = test(validation_loader, epoch)
             except Exception as e:
                 print("Error in validation routine!")
                 print(e.message)
                 print(e.__class__.__name__)
                 traceback.print_exc(e)
                 break
-            print("Test[%d]:Result* Prec@1 %.3f\tLoss %.3f"%(epoch,prec1,valid_loss))
+            print("Test[%d]:Result* \tLoss %.3f"%(epoch, valid_loss))
             test_score.append(score)
             y_valid_loss[epoch] = valid_loss
-            y_valid_acc[epoch]  = prec1
-    print(y_train_loss, y_train_acc, y_valid_loss, y_valid_acc)
-    np.save('test_score_%d.npy' % (start_epoch + 1), test_score)
+        np.save('test_score_%d.npy' % (start_epoch + 1), test_score)
+    print(y_train_loss, y_valid_loss)
