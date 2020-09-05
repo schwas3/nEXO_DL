@@ -231,17 +231,6 @@ if __name__ == "__main__":
         else:
             checkpoint = torch.load('./checkpoint_sens/ckpt.t7', map_location=torch.device('cpu') )
         net.load_state_dict(checkpoint['net'])
-        import glob
-        files = glob.glob('tl208/*')
-        tags_bb0n = []
-        tagresult = open('quicktest.txt', 'w')
-        for exfile in files:
-            extag = TagEvent(exfile)
-            tagresult.write("%s %f\n" % (exfile, extag))
-            tags_bb0n.append(extag)
-
-        plt.hist(np.array(tags_bb0n), bins = np.linspace(0, 1, 100))
-        plt.savefig('gamma_tag.pdf')
 
     x = np.linspace(start_epoch,start_epoch + 100,1)
     # numpy arrays for loss and accuracy
