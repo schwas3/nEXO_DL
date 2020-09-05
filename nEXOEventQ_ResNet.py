@@ -127,9 +127,8 @@ def test(testloader, epoch):
             _, predicted = outputs.max(1)
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
-            softmax = nn.Softmax()
             for m in range(outputs.size(0)):
-                score.append([softmax(outputs[m])[1].item(), targets[m].item()])
+                score.append([outputs[m].item(), targets[m].item()])
             print(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                 % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
