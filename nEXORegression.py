@@ -175,8 +175,6 @@ if __name__ == "__main__":
 
             # FORWARD AND BACK PROP
             outputs = net(features)
-            if batch_idx == 0:
-                print(outputs, targets)
             loss = criterion(outputs, targets)
             total_loss += loss
             for m in range(outputs.size(0)):
@@ -194,7 +192,7 @@ if __name__ == "__main__":
             print(s)
 
         net.eval()
-        with torch.set_grad_enabled(False):  # save memory during inference
+        with torch.no_grad():
             total_loss = 0
             total_acc = 0
             total = 0
@@ -204,8 +202,6 @@ if __name__ == "__main__":
                 features = features.to(device)
                 targets = targets.to(device).view(-1, 1)
                 outputs = net(features)
-                if batch_idx == 0:
-                    print(outputs, targets)
                 loss = criterion(outputs, targets)
                 total_loss += loss
                 for m in range(outputs.size(0)):
