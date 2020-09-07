@@ -245,7 +245,7 @@ if __name__ == "__main__":
             iterout += "lr=%.3e"%(param_group['lr'])
             print(iterout)
             try:
-                train_ave_los = train(train_loader, epoch)
+                train_ave_loss = train(train_loader, epoch)
             except Exception as e:
                 print("Error in training routine!")
                 print(e.message)

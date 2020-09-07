@@ -23,7 +23,7 @@ from torch.optim import lr_scheduler
 import argparse
 
 device = 'cuda' #if torch.cuda.is_available() else 'cpu'
-best_acc = 1000000  # best test accuracy
+best_acc = 0 # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 NUM_EPOCHS = 5
 def adjust_learning_rate(optimizer, epoch, lr):
@@ -167,6 +167,8 @@ if __name__ == "__main__":
     for epoch in range(start_epoch, start_epoch + NUM_EPOCHS):
         net.train()
         total_loss = 0
+        total_acc = 0
+        total = 0
         for batch_idx, (features, targets) in enumerate(train_loader):
             features = features.to(device)
             targets = targets.to(device).view(-1, 1)
@@ -177,19 +179,25 @@ if __name__ == "__main__":
                 print(outputs, targets)
             loss = criterion(outputs, targets)
             total_loss += loss
+            for m in range(outputs.size(0)):
+                if np.absolute(outputs[m].item() -  targets[m].item())/targets[m].item() < 0.02:
+                    total_acc += 1
             optimizer.zero_grad()
             loss.backward()
             # UPDATE MODEL PARAMETERS
             optimizer.step()
+            total += targets.size(0)
             # LOGGING
-            s = ('Epoch: %03d/%03d | Batch %04d/%04d | Loss: %.4f'
+            s = ('Epoch: %03d/%03d | Batch %04d/%04d | Loss: %.4f | Acc: %.3f '
                     % (epoch+1, NUM_EPOCHS, batch_idx,
-                      len(train_loader), total_loss/(batch_idx+1)))
+                      len(train_loader), total_loss/(batch_idx+1), total_acc*1.0/total))
             print(s)
 
         net.eval()
         with torch.set_grad_enabled(False):  # save memory during inference
             total_loss = 0
+            total_acc = 0
+            total = 0
             test_targets = []
             test_predicts = []
             for batch_idx, (features, targets) in enumerate(validation_loader):
@@ -200,17 +208,24 @@ if __name__ == "__main__":
                     print(outputs, targets)
                 loss = criterion(outputs, targets)
                 total_loss += loss
+                for m in range(outputs.size(0)):
+                    if np.absolute(outputs[m].item() -  targets[m].item())/targets[m].item() < 0.02:
+                        total_acc += 1
                 test_targets.append(targets)
                 test_predicts.append(outputs)
+                total += targets.size(0)
+                s = ('Test Epoch: %03d/%03d | Batch %04d/%04d | Loss: %.4f | Acc: %.3f '
+                    % (epoch+1, NUM_EPOCHS, batch_idx,
+                      len(validation_loader), total_loss/(batch_idx+1), total_acc*1.0/total))
+                print(s)
 
-            s = 'RMSE: | Test: %.2f' % total_loss
             np.save('eventq_predicts_%d.npy' % epoch, np.array(test_predicts) )
             np.save('eventq_targets_%d.npy' % epoch, np.array(test_targets) )
 
             print(s)
             # Save checkpoint.
-            acc = total_loss
-            if acc < best_acc:
+            acc = total_acc*1.0/total
+            if acc > best_acc:
                 print('Saving..')
                 state = {
                     'net': net.state_dict(),
