@@ -5,7 +5,7 @@ import h5py    # HDF5 support
 import glob
 import time
 import csv
-filelist = glob.glob('/scratchfs/exo/zepengli94/outfiles/*.h5')
+filelist = glob.glob('/scratchfs/exo/zepengli94/nexo/*.h5')
 t1 = time.time()
 csvfile = open('dataset_info.csv', 'w')
 fieldnames = ['groupname', 'dsetname']
@@ -16,8 +16,8 @@ with h5py.File('test1.h5', 'w') as fid:
         fileName = filelist[i]
         print(fileName, time.time() - t1)
         f = h5py.File(fileName,  "r")
-        f.copy(f['nexo_data'], junodata, name='nexo_data_%d' % i)
-        dset = f['nexo_data']
+        f.copy(f['bb0n.tar'], junodata, name='nexo_data_%d' % i)
+        dset = f['bb0n.tar']
         for item in dset.keys():
             writer.writerow({'groupname':'nexo_data_%d' % i, 'dsetname':item})
         f.close()
