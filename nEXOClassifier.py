@@ -268,10 +268,10 @@ if __name__ == "__main__":
 
     x = np.linspace(start_epoch,start_epoch + 100,1)
     # numpy arrays for loss and accuracy
-    y_train_loss = np.zeros(100)
-    y_train_acc  = np.zeros(100)
-    y_valid_loss = np.zeros(100)
-    y_valid_acc  = np.zeros(100)
+    y_train_loss = np.array([])
+    y_train_acc  = np.array([])
+    y_valid_loss = np.array([])
+    y_valid_acc  = np.array([])
     test_score = []
     for epoch in range(start_epoch, start_epoch + 10):
         # set the learning rate
@@ -289,8 +289,8 @@ if __name__ == "__main__":
                 traceback.print_exc(e)
                 break
             print("Epoch [%d] train aveloss=%.3f aveacc=%.3f"%(epoch,train_ave_loss,train_ave_acc))
-            y_train_loss[epoch] = train_ave_loss
-            y_train_acc[epoch]  = train_ave_acc
+            y_train_loss = np.append(y_train_loss, train_ave_loss)
+            y_train_acc = np.append(y_train_acc, train_ave_acc)
 
             # evaluate on validationset
             try:
@@ -303,8 +303,8 @@ if __name__ == "__main__":
                 break
             print("Test[%d]:Result* Prec@1 %.3f\tLoss %.3f"%(epoch,prec1,valid_loss))
             test_score.append(score)
-            y_valid_loss[epoch] = valid_loss
-            y_valid_acc[epoch]  = prec1
+            y_valid_loss = np.append(y_valid_loss, valid_loss)
+            y_valid_acc = np.append(y_valid_acc, prec1)
         np.save('test_score_%d.npy' % (start_epoch + 1), test_score)
     print(y_train_loss, y_train_acc, y_valid_loss, y_valid_acc)
     np.save('test_score_%d.npy' % (start_epoch + 1), test_score)
