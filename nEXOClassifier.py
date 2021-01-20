@@ -27,7 +27,7 @@ from torch.optim import lr_scheduler
 import argparse
 import resnet_example
 import traceback
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import pickle
 
 #device = 'cuda'
@@ -45,7 +45,7 @@ epochs = 200
 
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 20 epochs"""
-    lr = lr/exp10(epoch/20)
+    lr = lr/exp10(epoch/10)
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
@@ -227,7 +227,7 @@ if __name__ == "__main__":
     criterion = nn.CrossEntropyLoss().cuda()
     # We use SGD
     optimizer = torch.optim.SGD(net.parameters(), lr, momentum=momentum, weight_decay=weight_decay)
-
+    #optimizer = torch.optim.Adam(net.parameters(), lr=lr)
     if device == 'cuda':
         net = torch.nn.DataParallel(net, device_ids=device_ids)
         cudnn.benchmark = True
@@ -262,8 +262,8 @@ if __name__ == "__main__":
             tagresult.write("%s %f\n" % (exfile, extag))
             tags_bb0n.append(extag)
 
-        plt.hist(np.array(tags_bb0n), bins = np.linspace(0, 1, 100))
-        plt.savefig('gamma_tag.pdf')
+        #plt.hist(np.array(tags_bb0n), bins = np.linspace(0, 1, 100))
+        #plt.savefig('gamma_tag.pdf')
 
     x = np.linspace(start_epoch,start_epoch + 100,1)
     # numpy arrays for loss and accuracy
@@ -304,6 +304,7 @@ if __name__ == "__main__":
             test_score.append(score)
             y_valid_loss[epoch] = valid_loss
             y_valid_acc[epoch]  = prec1
+        np.save('test_score_%d.npy' % (start_epoch + 1), test_score)
     print(y_train_loss, y_train_acc, y_valid_loss, y_valid_acc)
     np.save('test_score_%d.npy' % (start_epoch + 1), test_score)
     #pickle_dump = (y_train_loss, y_train_acc, y_valid_loss, y_valid_acc, test_score)
