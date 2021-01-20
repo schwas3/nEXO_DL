@@ -229,11 +229,11 @@ if __name__ == "__main__":
     # We use SGD
     optimizer = torch.optim.SGD(net.parameters(), lr, momentum=momentum, weight_decay=weight_decay)
     #optimizer = torch.optim.Adam(net.parameters(), lr=lr)
-    if device == 'cuda':
-        net = torch.nn.DataParallel(net, device_ids=device_ids)
-        cudnn.benchmark = True
 
     net = net.to(device)
+    if torch.cuda.device_count() > 1:
+        print("Let's use ", torch.cuda.device_count(), " GPUs!")
+        net = torch.nn.DataParallel(net, device_ids=list(range(torch.cuda.device_count())))
     if args.resume and os.path.exists('./checkpoint_sens/ckpt.t7'):
         # Load checkpoint.
         print('==> Resuming from checkpoint..')
