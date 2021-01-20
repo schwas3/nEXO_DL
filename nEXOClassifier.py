@@ -25,7 +25,7 @@ import torch.backends.cudnn as cudnn
 from torch.optim import lr_scheduler
 
 import argparse
-import resnet_example
+import resnet_example, preact_resnet, nexodata
 import traceback
 #import matplotlib.pyplot as plt
 import pickle
@@ -186,22 +186,23 @@ if __name__ == "__main__":
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument('--tag', '-t', action='store_true', default=False, help='tag event with trained network')
-    parser.add_argument('--channels', '-p', type=int, default=3, help='Input Channels')
+    parser.add_argument('--channels', '-n', type=int, default=2, help='Input Channels')
     parser.add_argument('--start', '-s', type=int, default=0, help='start epoch')
-    parser.add_argument('--csv', '-c', type=str, default='image2dcharge_sens.csv', help='csv files of training sample')
+    parser.add_argument('--csv', '-c', type=str, default='test.csv', help='csv files of training sample')
+    parser.add_argument('--h5file', '-d', type=str, default='test.h5', help='csv files of training sample')
 
     args = parser.parse_args()
     transformations = transforms.Compose([transforms.ToTensor()])
     # Data
     print('==> Preparing data..')
-    nEXODataset = nEXODatasetFromImages(args.csv)
+    nEXODataset = nexodata.H5Dataset(args.h5file, args.csv)
     # Creating data indices for training and validation splits:
     dataset_size = len(nEXODataset)
     indices = list(range(dataset_size))
-    validation_split = .15
+    validation_split = .2
     split = int(np.floor(validation_split * dataset_size))
     shuffle_dataset = True
-    random_seed= 42
+    random_seed= 40
     if shuffle_dataset :
         np.random.seed(random_seed)
         np.random.shuffle(indices)
@@ -222,7 +223,7 @@ if __name__ == "__main__":
     epochs      = 100
 
     print('==> Building model..')
-    net = resnet_example.resnet18(pretrained=False, num_classes=2, input_channels=args.channels)
+    net = preact_resnet.PreActResNet18()
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
     # We use SGD
@@ -307,5 +308,3 @@ if __name__ == "__main__":
         np.save('test_score_%d.npy' % (start_epoch + 1), test_score)
     print(y_train_loss, y_train_acc, y_valid_loss, y_valid_acc)
     np.save('test_score_%d.npy' % (start_epoch + 1), test_score)
-    #pickle_dump = (y_train_loss, y_train_acc, y_valid_loss, y_valid_acc, test_score)
-    #pickle.dump( pickle_dump, open( "save_sens_%d.p" % start_epoch + 1, "wb" ) )
