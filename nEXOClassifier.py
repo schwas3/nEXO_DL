@@ -223,7 +223,7 @@ if __name__ == "__main__":
     epochs      = 100
 
     print('==> Building model..')
-    net = preact_resnet.PreActResNet18()
+    net = preact_resnet.PreActResNet18(num_channels=args.channels)
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
     # We use SGD

@@ -63,11 +63,11 @@ class PreActBottleneck(nn.Module):
 
 
 class PreActResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=2):
+    def __init__(self, block, num_blocks, num_channels=2, num_classes=2):
         super(PreActResNet, self).__init__()
         self.in_planes = 64
 
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=6, stride=2, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(num_channels, 64, kernel_size=6, stride=2, padding=1, bias=False)
         self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=2)
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
@@ -94,8 +94,8 @@ class PreActResNet(nn.Module):
         return out
 
 
-def PreActResNet18():
-    return PreActResNet(PreActBlock, [2,2,2,2])
+def PreActResNet18(num_channels=2):
+    return PreActResNet(PreActBlock, [2,2,2,2], num_channels=num_channels)
 
 def PreActResNet34():
     return PreActResNet(PreActBlock, [3,4,6,3])
@@ -112,7 +112,7 @@ def PreActResNet152():
 
 def test():
     net = PreActResNet18()
-    y = net((torch.randn(1,3,224,255)))
+    y = net((torch.randn(1,2,224,255)))
     print(y.size())
 
 test()

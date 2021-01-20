@@ -20,6 +20,7 @@ class H5Dataset(data.Dataset):
         dset_entry = self.h5file[self.groupname[idx]][self.datainfo[idx]]
         eventtype = dset_entry.attrs[u'tag']
         img = np.array(dset_entry)[:,:,:self.n_channels]
+        img = np.transpose(img, (2,0,1)) #the initial image building put the layer index at axe 3.
         return torch.from_numpy(img).type(torch.FloatTensor), eventtype
 
 
