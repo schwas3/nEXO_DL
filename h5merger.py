@@ -1,23 +1,27 @@
 #!/usr/bin/env python
-'''Reads NeXus HDF5 files using h5py and prints the contents'''
-
+'''Merge hdf5 files into a single file'''
 import h5py    # HDF5 support
 import glob
 import time
 import csv
+import argparse
+
 def h5merger(filedir, csvfile, outfile):
     filelist = glob.glob('%s/*.h5' % filedir)
     csvfile = open(csvfile, 'w')
     fieldnames = ['groupname', 'dsetname']
     writer = csv.DictWriter(csvfile, fieldnames)
+    nsig = 0
     with h5py.File(outfile, 'w') as fid:
-        nexodata = fid.create_group(u'nexo_data' )
-        for i in range(len(filelist)):
+        for i in range(40):
             fileName = filelist[i]
-            print(fileName, time.time() - t1)
+            groupname = 'bb0n event'
+            if 'gamma' in fileName:
+                groupname = 'gamma event'
+            print(fileName)
             f = h5py.File(fileName,  "r")
-            f.copy(f['bb0n.tar'], nexodata, name='nexo_data_%d' % i)
-            dset = f['bb0n.tar']
+            f.copy(f[groupname], fid['/'], name='nexo_data_%d' % i)
+            dset = f[groupname]
             for item in dset.keys():
                 writer.writerow({'groupname':'nexo_data_%d' % i, 'dsetname':item})
             f.close()
@@ -28,4 +32,4 @@ if __name__ == '__main__':
     parser.add_argument('--outfile', '-o', type=str, help='output h5 file.')
     parser.add_argument('--csvfile', '-c', type=str, help='csv file of dataset info.')
     args = parser.parse_args()
-    (args.filedir, args.csvfile, args.outfile)
+    h5merger(args.filedir, args.csvfile, args.outfile)
