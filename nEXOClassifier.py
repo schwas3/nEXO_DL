@@ -195,7 +195,7 @@ if __name__ == "__main__":
     transformations = transforms.Compose([transforms.ToTensor()])
     # Data
     print('==> Preparing data..')
-    nEXODataset = nexodata.H5Dataset(args.h5file, args.csv)
+    nEXODataset = nexodata.H5Dataset(args.h5file, args.csv, n_channels=args.channels)
     # Creating data indices for training and validation splits:
     dataset_size = len(nEXODataset)
     indices = list(range(dataset_size))
@@ -211,8 +211,8 @@ if __name__ == "__main__":
     # Creating PT data samplers and loaders:
     train_sampler = SubsetRandomSampler(train_indices)
     validation_sampler = SubsetRandomSampler(val_indices)
-    train_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=400, sampler=train_sampler, num_workers=4)
-    validation_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=400, sampler=validation_sampler, num_workers=4)
+    train_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=400, sampler=train_sampler, num_workers=12)
+    validation_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=400, sampler=validation_sampler, num_workers=12)
 
     lr = 1.0e-3
     momentum = 0.9
