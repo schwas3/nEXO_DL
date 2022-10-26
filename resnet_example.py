@@ -1,5 +1,5 @@
 import torch.nn as nn
-import math
+import torch,math
 import torch.utils.model_zoo as model_zoo
 
 
@@ -95,7 +95,7 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers, num_classes=1000, input_channels=3):
+    def __init__(self, block, layers, num_classes=2, input_channels=20):
         self.inplanes = 64
         super(ResNet, self).__init__()
         self.conv1 = nn.Conv2d(input_channels, 64, kernel_size=7, stride=2, padding=3,
@@ -230,3 +230,10 @@ def resnet152(pretrained=False, **kwargs):
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['resnet152']))
     return model
+
+def test():
+    net = resnet18(input_channels = 2)
+    y = net(torch.randn(2, 2, 224, 224))
+    print(y, y.size())
+
+test()
