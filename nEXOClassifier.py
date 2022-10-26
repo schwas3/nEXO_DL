@@ -25,7 +25,7 @@ import torch.backends.cudnn as cudnn
 from torch.optim import lr_scheduler
 
 import argparse
-import resnet_example, preact_resnet, nexodata
+import resnet_example, nexodata
 import traceback
 #import matplotlib.pyplot as plt
 import pickle
@@ -223,7 +223,7 @@ if __name__ == "__main__":
     epochs      = 100
 
     print('==> Building model..')
-    net = preact_resnet.PreActResNet18(num_channels=args.channels)
+    net = resnet_example.resnet18(num_channels=args.channels)
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
     # We use SGD
