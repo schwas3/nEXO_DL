@@ -25,7 +25,8 @@ import torch.backends.cudnn as cudnn
 from torch.optim import lr_scheduler
 
 import argparse
-import resnet_example, nexodata
+from networks.resnet_example import resnet18
+from utils.nexodata import H5Dataset
 import traceback
 #import matplotlib.pyplot as plt
 import pickle
@@ -195,7 +196,7 @@ if __name__ == "__main__":
     transformations = transforms.Compose([transforms.ToTensor()])
     # Data
     print('==> Preparing data..')
-    nEXODataset = nexodata.H5Dataset(args.h5file, args.csv, n_channels=args.channels)
+    nEXODataset = H5Dataset(args.h5file, args.csv, n_channels=args.channels)
     # Creating data indices for training and validation splits:
     dataset_size = len(nEXODataset)
     indices = list(range(dataset_size))
