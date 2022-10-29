@@ -16,13 +16,10 @@ class DataGen(torch.utils.data.Dataset):
             table_name : str; name of the table to read
                          currently available BinClassHits and SegClassHits
         """
-        self.filename   = filename
-        #self.datafile = datafile
-        csv_info = pd.read_csv(filename, skiprows=1 , header=None)
-        self.groupname = np.asarray(csv_info.iloc[:,0])
-        self.datainfo = np.asarray(csv_info.iloc[:,1])
+        self.csv_info = pd.read_csv(filename, skiprows=1 , header=None)
+        self.groupname = np.asarray(self.csv_info.iloc[:,0])
+        self.datainfo = np.asarray(self.csv_info.iloc[:,1])
         self.h5file = h5py.File(datafile, 'r')
-        self.h5in = None
         self.augmentation = augmentation
 
     def __getitem__(self, idx):
@@ -38,6 +35,8 @@ class DataGen(torch.utils.data.Dataset):
     def __del__(self):
         if self.h5file is not None:
             self.h5file.close()
+        if self.csv_info is not None:
+            del self.csv_info
 
 def collatefn(batch):
     coords = []
@@ -52,7 +51,7 @@ def collatefn(batch):
         labels.append(lab)
         events[bid] = event
 
-    coords = torch.tensor(np.concatenate(coords, axis=0), dtype = torch.long)
+    coords = torch.tensor(np.concatenate(coords, axis=0), dtype = torch.short)
     energs = torch.tensor(np.concatenate(energs, axis=0), dtype = torch.float).unsqueeze(-1)
     labels = torch.tensor(np.concatenate(labels, axis=0), dtype = torch.long)
 

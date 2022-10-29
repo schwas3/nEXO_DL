@@ -4,9 +4,10 @@ import sys
 import sparseconvnet as scn
 from .data_loaders import DataGen, collatefn
 from torch.utils.tensorboard import SummaryWriter
+import time
 
 def accuracy(true, pred, **kwrgs):
-    return sum(true==pred)/len(true)
+    return sum(true.detach().numpy()==pred.detach().numpy())/len(true.detach().numpy())
 
 def train_one_epoch(epoch_id, net, criterion, optimizer, loader, datafile, nclass = 2):
     """
@@ -16,6 +17,7 @@ def train_one_epoch(epoch_id, net, criterion, optimizer, loader, datafile, nclas
     loss_epoch = 0
     metrics = accuracy
     met_epoch = 0
+    start = time.time()
     for batchid, (coord, ener, label, event) in enumerate(loader):
         batch_size = len(event)
         ener, label = ener.cuda(), label.cuda()
@@ -33,13 +35,12 @@ def train_one_epoch(epoch_id, net, criterion, optimizer, loader, datafile, nclas
 
         softmax = torch.nn.Softmax(dim = 1)
         prediction = torch.argmax(softmax(output), 1)
-        print(label, prediction) # = torch.argmax(softmax(output), 1)
         met_epoch += metrics(label.cpu(), prediction.cpu(), nclass=nclass)
-
+    print(time.time() - start)
     loss_epoch = loss_epoch / len(loader)
     met_epoch = met_epoch / len(loader)
     epoch_ = f"Train Epoch: {epoch_id}"
-    loss_ = f"\t Loss: {loss_epoch:.6f}"
+    loss_ = f"\t Loss: {loss_epoch:.6f}, Acc: {met_epoch:.3f}"
     print(epoch_ + loss_)
 
     return loss_epoch, met_epoch
@@ -54,6 +55,9 @@ def valid_one_epoch(net, criterion, loader, datafile, nclass = 2):
     loss_epoch = 0
     metrics = accuracy
     met_epoch = 0
+    start = time.time()
+    loader_labels = np.array([])
+    loader_predicts = np.array([])
 
     with torch.autograd.no_grad():
         for batchid, (coord, ener, label, event) in enumerate(loader):
@@ -69,11 +73,15 @@ def valid_one_epoch(net, criterion, loader, datafile, nclass = 2):
             softmax = torch.nn.Softmax(dim = 1)
             prediction = torch.argmax(softmax(output), 1)
             met_epoch += metrics(label.cpu(), prediction.cpu(), nclass=nclass)
-
+            loader_labels = np.concatenate((loader_labels, label.cpu().detach().numpy()), axis=None)
+            loader_predicts = np.concatenate((loader_predicts, softmax(output).cpu().detach().numpy()[:, 1]), axis=None)
         loss_epoch = loss_epoch / len(loader)
         met_epoch = met_epoch / len(loader)
-        loss_ = f"\t Validation Loss: {loss_epoch:.6f}"
-        print(loss_)
+        loss_ = f"\t Validation Loss: {loss_epoch:.6f} Accu: {met_epoch:.3f}"
+        print(loss_, time.time() - start)
+    with open('valid.npy', 'wb') as f:
+        np.save(f, loader_labels)
+        np.save(f, loader_predicts)
 
     return loss_epoch, met_epoch
 
