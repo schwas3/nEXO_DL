@@ -12,6 +12,6 @@ This is the package developed for DNN-based energy reconstruction and signal/bac
  8. nEXORegression.py - main script for deep learning channel charge reconstruction model construction, training and testing. 
 ## Requirements
  * pytorch(1.3.1), pandas(0.23.4), scipy(1.2.1), numpy(1.16.6), uproot(3.12) 
- * ROOT6
+ * ~ROOT6~
  * dataset - The nEXO simulation and simulation result is not open. 
  
