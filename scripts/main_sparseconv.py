@@ -3,8 +3,6 @@
 This is a main script to perform training or prediction of network on provided data.
 To be called as main.py -conf conf_filename -a train
 """
-
-
 import os
 import copy
 import torch
@@ -14,12 +12,14 @@ from argparse     import Namespace
 import numpy  as np
 import pandas as pd
 import tables as tb
-#import faulthandler; faulthandler.enable()
+import yaml 
 
 from networks.architectures import ResNet
 
 from utils.train_utils      import train_net
 from utils.train_utils      import predict_gen
+import time
+start = time.time()
 
 def is_valid_action(parser, arg):
     if not arg in ['train', 'predict']:
@@ -45,8 +45,6 @@ def get_params(confname):
 
 
 if __name__ == '__main__':
-    # torch.backends.cudnn.enabled = True
-    # torch.backends.cudnn.benchmark = True
     parser = ArgumentParser(description="parameters for models")
     parser.add_argument("-conf", dest = "confname", required=True,
                         help = "input file with parameters", metavar="FILE",
@@ -69,7 +67,7 @@ if __name__ == '__main__':
                      nlinear = parameters.nlinear)
     net = net.cuda()
 
-    print('net constructed')
+    print('net constructed', time.time() - start)
 
     if parameters.saved_weights:
         dct_weights = torch.load(parameters.saved_weights)['state_dict']
