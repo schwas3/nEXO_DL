@@ -80,8 +80,7 @@ def valid_one_epoch(net, criterion, loader, datafile, nclass = 2):
         loss_ = f"\t Validation Loss: {loss_epoch:.6f} Accu: {met_epoch:.3f}"
         print(loss_, time.time() - start)
     with open('valid.npy', 'wb') as f:
-        np.save(f, loader_labels)
-        np.save(f, loader_predicts)
+        np.save(f, np.array(loader_labels, loader_predicts))
 
     return loss_epoch, met_epoch
 
