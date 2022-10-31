@@ -53,7 +53,7 @@ def collatefn(batch):
 
     return  coords, energs, labels, events
 
-class H5Dataset(data.Dataset):
+class DenseDataset(data.Dataset):
     def __init__(self, h5_path, csv_path, n_channels=2):
         self.to_tensor = transforms.ToTensor()
         csv_info = pd.read_csv(csv_path, header=None)
@@ -74,7 +74,7 @@ class H5Dataset(data.Dataset):
 
 
 def test():
-    dataset = H5Dataset('test.h5', 'test.csv')
+    dataset = DenseDataset('test.h5', 'test.csv')
     print(1, dataset[1][0].shape)
     print(1, dataset[1][1].shape)
 

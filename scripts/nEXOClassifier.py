@@ -26,7 +26,7 @@ from torch.optim import lr_scheduler
 
 import argparse
 from networks.resnet_example import resnet18
-from utils.data_loaders import H5Dataset
+from utils.data_loaders import DenseDataset
 import traceback
 #import matplotlib.pyplot as plt
 import pickle
@@ -196,7 +196,7 @@ if __name__ == "__main__":
     transformations = transforms.Compose([transforms.ToTensor()])
     # Data
     print('==> Preparing data..')
-    nEXODataset = H5Dataset(args.h5file, args.csv, n_channels=args.channels)
+    nEXODataset = DenseDataset(args.h5file, args.csv, n_channels=args.channels)
     # Creating data indices for training and validation splits:
     dataset_size = len(nEXODataset)
     indices = list(range(dataset_size))
