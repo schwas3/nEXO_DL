@@ -5,7 +5,7 @@ This is the package developed for DNN-based energy reconstruction and signal/bac
 1. config - Configurations of deep learning algorithms.
 2. utils - data loader and train/validation scripts.
 3. networks - neural network architetures.
-4. scripts -  
+4. scripts. 
  [//]: <> (1. ~nEXO2DChargeImage.py - script to convert nEXO charge simulation to two images. Only two channels of the image are currently used. The third channel is open for future addition of photon information.~ This has been replaced with DnnEventTagger in nexo-offline.
  2. ~image2dcharge_csv.py - script to build csv file for dataset build.~
  3. ~PadInput.py - script to build input numpy arrays for the pad design of anode.~
