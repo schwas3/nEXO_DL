@@ -5,17 +5,16 @@ import torch.utils.data as data
 from torchvision import transforms
 
 class SparseData(torch.utils.data.Dataset):
-    def __init__(self, filename, datafile, nevents=None, augmentation = False):
+    def __init__(self, csv_path, h5path, nevents=None, augmentation = False):
         """ This class yields events from pregenerated MC file.
         Parameters:
-            filename : str; filename to read
-            table_name : str; name of the table to read
-                         currently available BinClassHits and SegClassHits
+            csv_path : str; csv file containing file/event information to read
+            h5path : str; name of H5 data file 
         """
-        self.csv_info = pd.read_csv(filename, skiprows=1 , header=None)
+        self.csv_info = pd.read_csv(csv_path, skiprows=1 , header=None)
         self.groupname = np.asarray(self.csv_info.iloc[:,0])
         self.datainfo = np.asarray(self.csv_info.iloc[:,1])
-        self.h5file = h5py.File(datafile, 'r')
+        self.h5file = h5py.File(h5path, 'r')
         self.augmentation = augmentation
 
     def __getitem__(self, idx):
@@ -55,6 +54,11 @@ def collatefn(batch):
 
 class DenseDataset(data.Dataset):
     def __init__(self, h5_path, csv_path, n_channels=2):
+        """ This class yields events from pregenerated MC file.
+        Parameters:
+            csv_path : str; csv file containing file/event information to read
+            h5path : str; name of H5 data file 
+        """
         self.to_tensor = transforms.ToTensor()
         csv_info = pd.read_csv(csv_path, header=None)
         self.groupname = np.asarray(csv_info.iloc[:,0])
