@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import sys
 import sparseconvnet as scn
-from .data_loaders import DataGen, collatefn
+from .data_loaders import SparseData, collatefn
 from torch.utils.tensorboard import SummaryWriter
 import time
 
@@ -109,8 +109,8 @@ def train_net(*,
     """
         Trains the net nepoch times and saves the model anytime the validation loss decreases
     """
-    train_gen = DataGen(train_data_path, datafile, nevents = nevents_train)
-    valid_gen = DataGen(valid_data_path, datafile, nevents = nevents_valid)
+    train_gen = SparseData(train_data_path, datafile, nevents = nevents_train)
+    valid_gen = SparseData(valid_data_path, datafile, nevents = nevents_valid)
 
     loader_train = torch.utils.data.DataLoader(train_gen,
                                                batch_size = train_batch_size,
@@ -171,7 +171,7 @@ def predict_gen(data_path, net, datafile, batch_size, nevents):
             predictions : np.array (2d) containing predictions for all the classes
     """
 
-    gen    = DataGen(data_path, datafile, nevents = nevents)
+    gen    = SparseData(data_path, datafile, nevents = nevents)
     loader = torch.utils.data.DataLoader(gen,
                                          batch_size = batch_size,
                                          shuffle = False,

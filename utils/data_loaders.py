@@ -4,7 +4,7 @@ import torch, h5py
 import torch.utils.data as data
 from torchvision import transforms
 
-class DataGen(torch.utils.data.Dataset):
+class SparseData(torch.utils.data.Dataset):
     def __init__(self, filename, datafile, nevents=None, augmentation = False):
         """ This class yields events from pregenerated MC file.
         Parameters:
