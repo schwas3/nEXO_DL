@@ -26,7 +26,7 @@ from torch.optim import lr_scheduler
 
 import argparse
 from networks.resnet_example import resnet18
-from utils.nexodata import H5Dataset
+from utils.data_loaders import H5Dataset
 import traceback
 #import matplotlib.pyplot as plt
 import pickle
