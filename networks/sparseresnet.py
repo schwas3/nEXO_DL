@@ -1,9 +1,7 @@
 import torch
-#from   enum import auto
 import sparseconvnet as scn
 from . building_blocks import ResidualBlock_downsample
 from . building_blocks import ResidualBlock_basic
-#from . building_blocks import ResidualBlock_upsample
 from . building_blocks import ConvBNBlock
 from . building_blocks import calculate_output_dimension
 

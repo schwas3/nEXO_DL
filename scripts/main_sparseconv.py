@@ -14,7 +14,7 @@ import pandas as pd
 import tables as tb
 import yaml 
 
-from networks.architectures import ResNet
+from networks.sparseresnet import ResNet
 
 from utils.train_utils      import train_net
 from utils.train_utils      import predict_gen

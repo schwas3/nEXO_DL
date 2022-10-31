@@ -1,12 +1,7 @@
-#import tables as tb
 import numpy  as np
 import pandas as pd
 import torch
-#import warnings
-#import itertools
 import h5py
-
-#from invisible_cities.io   .dst_io  import load_dst
 
 class DataGen(torch.utils.data.Dataset):
     def __init__(self, filename, datafile, nevents=None, augmentation = False):
