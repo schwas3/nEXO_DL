@@ -82,13 +82,6 @@ def valid_one_epoch(net, criterion, loader, datafile, nclass = 2):
 
     return loss_epoch, met_epoch
 
-
-
-def save_checkpoint(state, filename='checkpoint.pth.tar'):
-    torch.save(state, filename)
-
-
-
 def train_net(*,
               nepoch,
               train_data_path,
@@ -120,7 +113,7 @@ def train_net(*,
     loader_valid = torch.utils.data.DataLoader(valid_gen,
                                                batch_size = valid_batch_size,
                                                shuffle = False,
-                                               num_workers = 1,
+                                               num_workers = num_workers,
                                                collate_fn = collatefn,
                                                drop_last = True,
                                                pin_memory = False)
@@ -139,7 +132,7 @@ def train_net(*,
                              'optimizer': optimizer.state_dict()}, f'{checkpoint_dir}/net_checkpoint_{i}.pth')
             start_loss = valid_loss
         else:
-            save_checkpoint({'loss': valid_loss,
+            torch.save({'loss': valid_loss,
                              'acc': valid_met,
 			     'train_loss': train_loss,
                              'train_acc': train_met,
