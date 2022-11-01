@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 This is a main script to perform training or prediction of network on provided data.
-To be called as main.py -conf conf_filename -a train
+To be called as main_sparseconvnet.py -conf conf_filename -a train/predict
 """
 import os
 import copy

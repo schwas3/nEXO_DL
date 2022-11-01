@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import sys
 import sparseconvnet as scn
 from .data_loaders import SparseData, collatefn
 import time
@@ -131,20 +130,20 @@ def train_net(*,
         valid_loss, valid_met = valid_one_epoch(net, criterion, loader_valid, datafile)
 
         if valid_loss < start_loss:
-            save_checkpoint({'state_dict': net.state_dict(),
+            torch.save({'state_dict': net.state_dict(),
 			     'loss': valid_loss,
                              'acc': valid_met,
 			     'train_loss': train_loss,
                              'train_acc': train_met,
                              'epoch': i,
-                             'optimizer': optimizer.state_dict()}, f'{checkpoint_dir}/net_checkpoint_{i}.pth.tar')
+                             'optimizer': optimizer.state_dict()}, f'{checkpoint_dir}/net_checkpoint_{i}.pth')
             start_loss = valid_loss
         else:
             save_checkpoint({'loss': valid_loss,
                              'acc': valid_met,
 			     'train_loss': train_loss,
                              'train_acc': train_met,
-                             'epoch': i}, f'{checkpoint_dir}/net_checkpoint_{i}.pth.tar')
+                             'epoch': i}, f'{checkpoint_dir}/summary_{i}.pth')
             start_loss = valid_loss
 
 
