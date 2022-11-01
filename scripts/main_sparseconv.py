@@ -4,7 +4,6 @@ This is a main script to perform training or prediction of network on provided d
 To be called as main_sparseconvnet.py -conf conf_filename -a train/predict
 """
 import os
-import copy
 import torch
 from argparse     import ArgumentParser
 from argparse     import Namespace
