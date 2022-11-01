@@ -68,9 +68,11 @@ if __name__ == '__main__':
     net = net.cuda()
 
     print('net constructed', time.time() - start)
-
+    
+    loss = np.inf
     if parameters.saved_weights:
         dct_weights = torch.load(parameters.saved_weights)['state_dict']
+        loss = torch.load(parameters.saved_weights)['loss']
         net.load_state_dict(dct_weights, strict=False)
         print('weights loaded')
 
@@ -98,8 +100,8 @@ if __name__ == '__main__':
                   criterion = criterion,
                   optimizer = optimizer,
                   checkpoint_dir = parameters.checkpoint_dir,
-                  tensorboard_dir = parameters.tensorboard_dir,
                   num_workers = parameters.num_workers,
+		  start_loss = loss,
                   nevents_train = parameters.nevents_train,
                   nevents_valid = parameters.nevents_valid,
                   )

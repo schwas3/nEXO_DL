@@ -3,7 +3,6 @@ import torch
 import sys
 import sparseconvnet as scn
 from .data_loaders import SparseData, collatefn
-from torch.utils.tensorboard import SummaryWriter
 import time
 
 def accuracy(true, pred, **kwrgs):
@@ -102,9 +101,9 @@ def train_net(*,
               optimizer,
               datafile,
               checkpoint_dir,
-              tensorboard_dir,
               num_workers,
-              nevents_train = None,
+              start_loss = np.inf, 
+	      nevents_train = None,
               nevents_valid = None):
     """
         Trains the net nepoch times and saves the model anytime the validation loss decreases
@@ -127,23 +126,26 @@ def train_net(*,
                                                drop_last = True,
                                                pin_memory = False)
 
-    start_loss = np.inf
-    writer = SummaryWriter(tensorboard_dir)
     for i in range(nepoch):
         train_loss, train_met = train_one_epoch(i, net, criterion, optimizer, loader_train, datafile)
         valid_loss, valid_met = valid_one_epoch(net, criterion, loader_valid, datafile)
 
         if valid_loss < start_loss:
             save_checkpoint({'state_dict': net.state_dict(),
+			     'loss': valid_loss,
+                             'acc': valid_met,
+			     'train_loss': train_loss,
+                             'train_acc': train_met,
+                             'epoch': i,
                              'optimizer': optimizer.state_dict()}, f'{checkpoint_dir}/net_checkpoint_{i}.pth.tar')
             start_loss = valid_loss
-
-        writer.add_scalar('loss/train', train_loss, i)
-        writer.add_scalar('loss/valid', valid_loss, i)
-        writer.add_scalar('acc/train', train_met, i)
-        writer.add_scalar('acc/valid', valid_met, i)
-        writer.flush()
-    writer.close()
+        else:
+            save_checkpoint({'loss': valid_loss,
+                             'acc': valid_met,
+			     'train_loss': train_loss,
+                             'train_acc': train_met,
+                             'epoch': i}, f'{checkpoint_dir}/net_checkpoint_{i}.pth.tar')
+            start_loss = valid_loss
 
 
 
