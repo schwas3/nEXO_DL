@@ -4,7 +4,7 @@ import sparseconvnet as scn
 from .data_loaders import SparseData, collatefn
 import time
 
-def accuracy(true, pred, **kwrgs):
+def accuracy(true, pred):
     return sum(true.detach().numpy()==pred.detach().numpy())/len(true.detach().numpy())
 
 def train_one_epoch(epoch_id, net, criterion, optimizer, loader, datafile, nclass = 2):
@@ -13,8 +13,7 @@ def train_one_epoch(epoch_id, net, criterion, optimizer, loader, datafile, nclas
     """
     net.train()
     loss_epoch = 0
-    metrics = accuracy
-    met_epoch = 0
+    acc_epoch = 0
     start = time.time()
     for batchid, (coord, ener, label, event) in enumerate(loader):
         batch_size = len(event)
@@ -33,26 +32,25 @@ def train_one_epoch(epoch_id, net, criterion, optimizer, loader, datafile, nclas
 
         softmax = torch.nn.Softmax(dim = 1)
         prediction = torch.argmax(softmax(output), 1)
-        met_epoch += metrics(label.cpu(), prediction.cpu(), nclass=nclass)
+        acc_epoch += accuracy(label.cpu(), prediction.cpu())
     print(time.time() - start)
     loss_epoch = loss_epoch / len(loader)
-    met_epoch = met_epoch / len(loader)
+    acc_epoch = acc_epoch / len(loader)
     epoch_ = f"Train Epoch: {epoch_id}"
-    loss_ = f"\t Loss: {loss_epoch:.6f}, Acc: {met_epoch:.3f}"
+    loss_ = f"\t Loss: {loss_epoch:.6f}, Acc: {acc_epoch:.3f}"
     print(epoch_ + loss_)
 
-    return loss_epoch, met_epoch
+    return loss_epoch, acc_epoch
 
 
 def valid_one_epoch(net, criterion, loader, datafile, nclass = 2):
     """
-        Computes loss and metrics (accuracy for classification)
+        Computes loss and accuracy for classification
         for all the validation data
     """
     net.eval()
     loss_epoch = 0
-    metrics = accuracy
-    met_epoch = 0
+    acc_epoch = 0
     start = time.time()
     loader_labels = np.array([])
     loader_predicts = np.array([])
@@ -70,17 +68,17 @@ def valid_one_epoch(net, criterion, loader, datafile, nclass = 2):
 
             softmax = torch.nn.Softmax(dim = 1)
             prediction = torch.argmax(softmax(output), 1)
-            met_epoch += metrics(label.cpu(), prediction.cpu(), nclass=nclass)
+            acc_epoch += accuracy(label.cpu(), prediction.cpu())
             loader_labels = np.concatenate((loader_labels, label.cpu().detach().numpy()), axis=None)
             loader_predicts = np.concatenate((loader_predicts, softmax(output).cpu().detach().numpy()[:, 1]), axis=None)
         loss_epoch = loss_epoch / len(loader)
-        met_epoch = met_epoch / len(loader)
-        loss_ = f"\t Validation Loss: {loss_epoch:.6f} Accu: {met_epoch:.3f}"
+        acc_epoch = acc_epoch / len(loader)
+        loss_ = f"\t Validation Loss: {loss_epoch:.6f} Accu: {acc_epoch:.3f}"
         print(loss_, time.time() - start)
     with open('valid.npy', 'wb') as f:
         np.save(f, np.array([loader_labels, loader_predicts]))
 
-    return loss_epoch, met_epoch
+    return loss_epoch, acc_epoch
 
 def train_net(*,
               nepoch,
