@@ -3,6 +3,7 @@ import pandas as pd
 import torch, h5py
 import torch.utils.data as data
 from torchvision import transforms
+from scipy.sparse import csr_matrix
 
 class SparseData(torch.utils.data.Dataset):
     def __init__(self, csv_path, h5path, nevents=None, augmentation = False):
@@ -76,7 +77,28 @@ class DenseDataset(data.Dataset):
         img = np.transpose(img, (2,0,1)) #the initial image building put the layer index at axe 3.
         return torch.from_numpy(img).type(torch.FloatTensor), eventtype
 
+class DatasetFromSparseMatrix(data.Dataset):
+    def __init__(self, h5_path, csv_path, n_channels=2):
+        self.to_tensor = transforms.ToTensor()
+        csv_info = pd.read_csv(csv_path, header=None)
+        self.groupname = np.asarray(csv_info.iloc[:,0])
+        self.datainfo = np.asarray(csv_info.iloc[:,1])
+        self.h5file = h5py.File(h5_path, 'r')
+        self.n_channels = n_channels
 
+    def __len__(self):
+        return len(self.datainfo)
+    
+    def __getitem__(self, idx):
+        h5_entry = self.h5file[self.groupname[idx]][self.datainfo[idx]]
+        dset_entry_x = csr_matrix((h5_entry['data_x'][:], h5_entry['indices_x'][:],
+                                   h5_entry['indptr_x'][:]), h5_entry.attrs['shape_x'], dtype=np.float32).todense()
+        dset_entry_y = csr_matrix((h5_entry['data_y'][:], h5_entry['indices_y'][:],
+                                   h5_entry['indptr_y'][:]), h5_entry.attrs['shape_y'], dtype=np.float32).todense() 
+        eventtype = 1 if h5_entry.attrs[u'tag']=='e-' else 0
+        img = np.array([dset_entry_x, dset_entry_y])
+        return torch.from_numpy(img).type(torch.FloatTensor), eventtype
+    
 def test():
     dataset = DenseDataset('test.h5', 'test.csv')
     print(1, dataset[1][0].shape)
