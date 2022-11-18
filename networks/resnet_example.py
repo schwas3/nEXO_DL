@@ -98,7 +98,7 @@ class ResNet(nn.Module):
     def __init__(self, block, layers, num_classes=2, input_channels=20):
         self.inplanes = 64
         super(ResNet, self).__init__()
-        self.conv1 = nn.Conv2d(input_channels, 64, kernel_size=7, stride=2, padding=3,
+        self.conv1 = nn.Conv2d(input_channels, 64, kernel_size=6, stride=2, padding=1,
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
@@ -236,4 +236,4 @@ def test():
     y = net(torch.randn(2, 2, 224, 224))
     print(y, y.size())
 
-test()
+# test()
