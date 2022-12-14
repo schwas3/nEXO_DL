@@ -122,7 +122,6 @@ def train_net(*,
 
         if valid_loss < start_loss:
             torch.save({'state_dict': net.state_dict(),
-			     'optimizer': optimizer.state_dict(),
 			     'loss': valid_loss,
                              'acc': valid_met,
 			     'train_loss': train_loss,
