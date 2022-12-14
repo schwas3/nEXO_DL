@@ -88,9 +88,9 @@ if __name__ == '__main__':
                                      betas = parameters.betas,
                                      eps = parameters.eps,
                                      weight_decay = parameters.weight_decay)
-	if parameters.saved_weights:
-		saved_optimizer = torch.load(parameters.saved_weights)['optimizer']
-		optimizer.load_state_dict(saved_optimizer)
+        if parameters.saved_weights:
+            saved_optimizer = torch.load(parameters.saved_weights)['optimizer']
+            optimizer.load_state_dict(saved_optimizer)
 
         train_net(nepoch = parameters.nepoch,
                   train_data_path = parameters.train_file,
