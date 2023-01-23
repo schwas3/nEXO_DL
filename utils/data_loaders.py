@@ -98,11 +98,43 @@ class DatasetFromSparseMatrix(data.Dataset):
         eventtype = 1 if h5_entry.attrs[u'tag']=='e-' else 0
         img = np.array([dset_entry_x, dset_entry_y])
         return torch.from_numpy(img).type(torch.FloatTensor), eventtype
+
+class CathodeSimData(torch.utils.data.Dataset):
+    def __init__(self, csv_path, h5path, nevents=None, augmentation = False):
+        """ This class yields events from pregenerated MC file.
+        Parameters:
+            csv_path : str; csv file containing file/event information to read
+            h5path : str; name of H5 data file 
+        """
+        self.csv_info = pd.read_csv(csv_path, skiprows=1 , header=None)
+        self.groupname = np.asarray(self.csv_info.iloc[:,0])
+        self.datainfo = np.asarray(self.csv_info.iloc[:,1])
+        self.h5file = h5py.File(h5path, 'r')
+        self.augmentation = augmentation
+
+    def __getitem__(self, idx):
+        dset_entry = self.h5file[self.groupname[idx]][self.datainfo[idx]]
+        eventtype = dset_entry.attrs[u'tag']
+        x = np.array(dset_entry[:, 0]).astype(int)
+        y = np.array(dset_entry[:, 1]).astype(int)
+        z = np.array(dset_entry[:, 2]).astype(int)
+        img = np.zeros((256, 256, 20))
+        for i, j, k, v in zip(x, y, z, dset_entry[:,3]):
+            img[i, j, k] = v
+        return img, eventtype
+
+    def __len__(self):
+        return len(self.datainfo)
+    def __del__(self):
+        if self.h5file is not None:
+            self.h5file.close()
+        if self.csv_info is not None:
+            del self.csv_info
     
 def test():
-    dataset = DenseDataset('test.h5', 'test.csv')
-    print(1, dataset[1][0].shape)
-    print(1, dataset[1][1].shape)
+    dataset = CathodeSimData('/expanse/lustre/scratch/zli10/temp_project/cathodesim/nexo.csv', '/expanse/lustre/scratch/zli10/temp_project/cathodesim/nexo.h5')
+    print(1, dataset[4])
+    #print(1, dataset[1][4].shape)
 
 if __name__ == '__main__':
     test()
