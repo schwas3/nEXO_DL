@@ -118,10 +118,10 @@ class CathodeSimData(torch.utils.data.Dataset):
         x = np.array(dset_entry[:, 0]).astype(int)
         y = np.array(dset_entry[:, 1]).astype(int)
         z = np.array(dset_entry[:, 2]).astype(int)
-        img = np.zeros((256, 256, 20))
+        img = np.zeros((20, 256, 256))
         for i, j, k, v in zip(x, y, z, dset_entry[:,3]):
-            img[i, j, k] = v
-        return img, eventtype
+            img[k, i, j] = v
+        return torch.from_numpy(img).type(torch.FloatTensor), eventtype
 
     def __len__(self):
         return len(self.datainfo)
@@ -133,7 +133,7 @@ class CathodeSimData(torch.utils.data.Dataset):
     
 def test():
     dataset = CathodeSimData('/expanse/lustre/scratch/zli10/temp_project/cathodesim/nexo.csv', '/expanse/lustre/scratch/zli10/temp_project/cathodesim/nexo.h5')
-    print(1, dataset[4])
+    print(1, dataset[4][0].shape)
     #print(1, dataset[1][4].shape)
 
 if __name__ == '__main__':

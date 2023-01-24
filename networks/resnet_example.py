@@ -232,8 +232,8 @@ def resnet152(pretrained=False, **kwargs):
     return model
 
 def test():
-    net = resnet18(input_channels = 2)
-    y = net(torch.randn(2, 2, 224, 224))
+    net = resnet18(input_channels = 20)
+    y = net(torch.randn(2, 20, 224, 224))
     print(y, y.size())
 
-# test()
+#test()
