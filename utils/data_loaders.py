@@ -118,10 +118,12 @@ class CathodeSimData(torch.utils.data.Dataset):
         x = np.array(dset_entry[:, 0]).astype(int)
         y = np.array(dset_entry[:, 1]).astype(int)
         z = np.array(dset_entry[:, 2]).astype(int)
-        img = np.zeros((20, 256, 256))
+        #img = np.zeros((20, 256, 256))
+        img = np.random.normal(0, 2.75, size=(20, 256, 256))
         for i, j, k, v in zip(x, y, z, dset_entry[:,3]):
             img[k, i, j] = v
-        return torch.from_numpy(img).type(torch.FloatTensor), eventtype
+        img[img<6] = 0
+        return torch.from_numpy(img).type(torch.FloatTensor), eventtype, dset_entry.attrs[u'energy']
 
     def __len__(self):
         return len(self.datainfo)
