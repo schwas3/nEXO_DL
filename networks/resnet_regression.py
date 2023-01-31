@@ -1,6 +1,6 @@
+import torch
 import torch.nn as nn
 import math
-import torch
 import torch.utils.model_zoo as model_zoo
 
 
@@ -99,7 +99,7 @@ class ResNet(nn.Module):
     def __init__(self, block, layers, input_channels=3):
         self.inplanes = 64
         super(ResNet, self).__init__()
-        self.conv1 = nn.Conv2d(input_channels, 64, kernel_size=4, stride=2, padding=3,
+        self.conv1 = nn.Conv2d(input_channels, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
@@ -234,7 +234,8 @@ def resnet152(pretrained=False, **kwargs):
 
 def test():
     net = resnet18(input_channels = 2)
-    y = net(torch.randn(1, 2, 224, 224))
-    print(y.size())
+    y = net(torch.randn(20, 2, 256, 256))
+    print(y)
 
-test()
+if __name__ == '__main__':
+    test()
