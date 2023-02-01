@@ -3,21 +3,14 @@
 
 #Dataset code copied from https://github.com/utkuozbulak/pytorch-custom-dataset-examples
 #model code copied from https://github.com/DeepLearnPhysics/pytorch-uresnet
-import pandas as pd
 import numpy as np
-from numpy import load
-import scipy.misc
 from scipy.special import exp10
 import torch
 import torch.nn as nn
-from torchvision import transforms
-from torch.utils.data.dataset import Dataset  # For custom datasets
 from torch.utils.data.sampler import SubsetRandomSampler
 import os
 
 import torch.optim as optim
-import torch.nn.functional as F
-import torch.backends.cudnn as cudnn
 from torch.optim import lr_scheduler
 
 import argparse
@@ -125,22 +118,6 @@ def test(testloader, epoch, saveall=False):
         
     return test_loss/len(testloader), np.array(score) #, is_better
 
-def TagEvent(event):
-    
-    global best_acc
-    net.eval()
-    npimg = load(event , allow_pickle=True).astype(np.float32)
-    # npimg = (npimg - npimg.min())/(npimg.max() - npimg.min())
-    # Transform image to tensor
-    img_as_tensor = self.to_tensor(npimg).type(torch.FloatTensor)
-    img_as_tensor = torch.unsqueeze(img_as_tensor, 0)
-    softmax = nn.Softmax()
-    
-    with torch.no_grad():
-        img_as_tensor = img_as_tensor.to(device)
-        output = net(img_as_tensor)
-        return softmax(output[0])[1].item()
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch nEXO background rejection')
     parser.add_argument('--lr', default=1.0e-3, type=float, help='learning rate')
@@ -213,27 +190,6 @@ if __name__ == "__main__":
         best_acc = checkpoint['acc']
         start_epoch = checkpoint['epoch'] + 1
         
-    if args.tag:
-        # Use trained network to tag event.
-        print('==> Load the network from checkpoint..')
-        assert os.path.isdir('checkpoint_sens'), 'Error: no checkpoint directory found!'
-        if device == 'cuda':
-            checkpoint = torch.load('./checkpoint_sens/ckpt.t7' )
-        else:
-            checkpoint = torch.load('./checkpoint_sens/ckpt.t7', map_location=torch.device('cpu') )
-        net.load_state_dict(checkpoint['net'])
-        import glob
-        files = glob.glob('tl208/*')
-        tags_bb0n = []
-        tagresult = open('quicktest.txt', 'w')
-        for exfile in files:
-            extag = TagEvent(exfile)
-            tagresult.write("%s %f\n" % (exfile, extag))
-            tags_bb0n.append(extag)
-
-        # plt.hist(np.array(tags_bb0n), bins = np.linspace(0, 1, 100))
-        # plt.savefig('gamma_tag.pdf')
-
     # Numpy arrays for loss and accuracy, if resume from check point then read the previous results
     if args.resume and os.path.exists('./training_outputs/loss_acc.npy'):
         arrays_resumed = np.load('./training_outputs/loss_acc.npy', allow_pickle=True)
