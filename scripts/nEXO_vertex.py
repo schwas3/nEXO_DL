@@ -85,14 +85,7 @@ def train(trainloader, epoch):
         optimizer.step()
 
         train_loss += loss.item()
-        #_, predicted = outputs
-        #total += targets.size(0)
-        #correct += predicted.eq(targets).sum().item()
-
-        #print(targets[:10,:], outputs[:10,:])
         print(batch_idx, '/', len(trainloader), 'Loss: %.3f ' % (train_loss/(batch_idx+1.)))
-        #print(batch_idx, '/', len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-        #    % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
     return train_loss/len(trainloader) #, 100.*correct/total
 
 def test(testloader, epoch, saveall=False):
@@ -100,7 +93,6 @@ def test(testloader, epoch, saveall=False):
     global best_acc
     net.eval()
     test_loss = 0
-    #correct = 0
     total = 0
     score = []
     
@@ -111,16 +103,9 @@ def test(testloader, epoch, saveall=False):
             loss = criterion(outputs, targets)
 
             test_loss += loss.item()
+            for target, output in zip(targets, outputs):
+                score.append([target.detach().cpu().numpy(), output.detach().cpu().numpy()])
             print(batch_idx, '/', len(testloader), 'Loss: %.3f ' % (test_loss/(batch_idx+1.)))
-            #_, predicted = outputs.max(1)
-            #total += targets.size(0)
-            #correct += predicted.eq(targets).sum().item()
-            #softmax = nn.Softmax(dim=0)
-            #for m in range(outputs.size(0)):
-            #    score.append([softmax(outputs[m])[1].item(), targets[m].item()])
-                # score.append([outputs[m][1].item(), targets[m].item()])
-            #print(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-            #    % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
     # Save checkpoint.
     is_better = False
@@ -158,7 +143,7 @@ def test(testloader, epoch, saveall=False):
     #    torch.save(state, './checkpoint_sens/ckpt.t7' )
     #    best_acc = acc
         
-    return test_loss/len(testloader) #, 100.*correct/total, score, is_better
+    return test_loss/len(testloader), np.array(score) #, is_better
 
 def TagEvent(event):
     
@@ -309,7 +294,7 @@ if __name__ == "__main__":
 
             # Evaluate on validationset
             try:
-                valid_loss = test(validation_loader, epoch, args.save_all)
+                valid_loss, score = test(validation_loader, epoch, args.save_all)
             except Exception as e:
                 print("Error in validation routine!")
                 print(e.message)
@@ -319,7 +304,7 @@ if __name__ == "__main__":
                 
             #print("Test[%d]: Result* Loss %.3f\t Precision: %.3f"%(epoch, valid_loss, prec1))
             
-            #test_score.append(score)
+            test_score.append(score)
             y_valid_loss = np.append(y_valid_loss, valid_loss)
             #y_valid_acc = np.append(y_valid_acc, prec1)
             
