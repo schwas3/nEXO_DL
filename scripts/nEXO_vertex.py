@@ -57,12 +57,10 @@ def train(trainloader, epoch):
     #correct = 0
     total = 0
     for batch_idx, (inputs, targets) in enumerate(trainloader):
-        # print(inputs.shape)
         inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
         outputs = net(inputs)
         loss = criterion(outputs, targets)
-        print(loss)
         loss.backward()
         optimizer.step()
 
@@ -141,8 +139,6 @@ def TagEvent(event):
     with torch.no_grad():
         img_as_tensor = img_as_tensor.to(device)
         output = net(img_as_tensor)
-        # print(output.shape)
-        # print(softmax(output)[0][1].item())
         return softmax(output[0])[1].item()
 
 if __name__ == "__main__":
