@@ -7,7 +7,6 @@
 import pandas as pd
 import numpy as np
 from numpy import load
-import scipy.misc
 from scipy.special import exp10
 import os
 import sys
@@ -30,10 +29,13 @@ import argparse
 from networks.resnet_example import resnet18
 from utils.data_loaders import CathodeSimData 
 import traceback
-#import matplotlib.pyplot as plt
-import pickle
+import yaml 
 
-#device = 'cuda'
+def yaml_load(config):
+    with open(config) as stream:
+        param = yaml.safe_load(stream)
+    return param
+
 if torch.cuda.is_available():
     device = 'cuda'
 else:
@@ -164,17 +166,22 @@ if __name__ == "__main__":
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument('--save_all', action='store_true', default=False, help='save all training records')
     parser.add_argument('--tag', '-t', action='store_true', default=False, help='tag event with trained network')
-    parser.add_argument('--channels', '-n', type=int, default=20, help='Input Channels')
     parser.add_argument('--start', '-s', type=int, default=0, help='start epoch')
-    parser.add_argument('--csv', '-c', type=str, default='test.csv', help='csv files of training sample')
-    parser.add_argument('--h5file', '-d', type=str, default='test.h5', help='h5 files of training sample')
-
+    parser.add_argument('--config', '-f', type=str, default="baseline.yml", help="specify yaml config")
+    
     args = parser.parse_args()
-    transformations = transforms.Compose([transforms.ToTensor()])
+    # parameters
+    config = yaml_load(args.config)
+    data_name = config['data']['name']
+    h5file = config['data']['h5name']
+    fcsv = config['data']['csv']
+    input_shape = [int(i) for i in config['data']['input_shape']]
+    lr = config['fit']['compile']['initial_lr']
+    batch_size = config['fit']['batch_size']
     
     # Data
     print('==> Preparing data..')
-    nEXODataset = CathodeSimData(args.csv, args.h5file)
+    nEXODataset = CathodeSimData(fcsv, h5file)
     # Creating data indices for training and validation splits:
     dataset_size = len(nEXODataset)
     indices = list(range(dataset_size))
@@ -203,7 +210,7 @@ if __name__ == "__main__":
     epochs      = 5
 
     print('==> Building model..')
-    net = resnet18(input_channels=args.channels)
+    net = resnet18(input_channels=input_shape[2])
     # Define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
     # We use SGD
