@@ -78,7 +78,6 @@ def train(trainloader, epoch):
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         # print(inputs.shape)
         inputs, targets = inputs.to(device), targets.to(device)
-        print(inputs.shape)
         optimizer.zero_grad()
         outputs = net(inputs)
         loss = criterion(outputs, targets)
@@ -86,10 +85,12 @@ def train(trainloader, epoch):
         optimizer.step()
 
         train_loss += loss.item()
-        _, predicted = outputs.max(1)
-        total += targets.size(0)
+        #_, predicted = outputs
+        #total += targets.size(0)
         #correct += predicted.eq(targets).sum().item()
 
+        #print(targets[:10,:], outputs[:10,:])
+        print(batch_idx, '/', len(trainloader), 'Loss: %.3f ' % (train_loss/(batch_idx+1.)))
         #print(batch_idx, '/', len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
         #    % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
     return train_loss/len(trainloader) #, 100.*correct/total
@@ -110,10 +111,11 @@ def test(testloader, epoch, saveall=False):
             loss = criterion(outputs, targets)
 
             test_loss += loss.item()
-            _, predicted = outputs.max(1)
-            total += targets.size(0)
+            print(batch_idx, '/', len(testloader), 'Loss: %.3f ' % (test_loss/(batch_idx+1.)))
+            #_, predicted = outputs.max(1)
+            #total += targets.size(0)
             #correct += predicted.eq(targets).sum().item()
-            softmax = nn.Softmax(dim=0)
+            #softmax = nn.Softmax(dim=0)
             #for m in range(outputs.size(0)):
             #    score.append([softmax(outputs[m])[1].item(), targets[m].item()])
                 # score.append([outputs[m][1].item(), targets[m].item()])
