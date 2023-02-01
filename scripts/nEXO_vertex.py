@@ -3,23 +3,17 @@
 
 #Dataset code copied from https://github.com/utkuozbulak/pytorch-custom-dataset-examples
 #model code copied from https://github.com/DeepLearnPhysics/pytorch-uresnet
-
 import pandas as pd
 import numpy as np
 from numpy import load
 import scipy.misc
 from scipy.special import exp10
-import os
-import sys
-sys.path.append("..")
-
 import torch
 import torch.nn as nn
 from torchvision import transforms
 from torch.utils.data.dataset import Dataset  # For custom datasets
 from torch.utils.data.sampler import SubsetRandomSampler
 import os
-import shutil
 
 import torch.optim as optim
 import torch.nn.functional as F
@@ -31,10 +25,13 @@ from networks.resnet_regression import resnet18
 from utils.data_loaders import VertexDataset
 from utils.data_loaders import DatasetFromSparseMatrix
 import traceback
-#import matplotlib.pyplot as plt
-import pickle
+import yaml 
 
-#device = 'cuda'
+def yaml_load(config):
+    with open(config) as stream:
+        param = yaml.safe_load(stream)
+    return param
+
 if torch.cuda.is_available():
     device = 'cuda'
 else:
@@ -45,28 +42,12 @@ os.environ["CUDA_VISIBLE_DEVICES"] = str(list_of_gpus).strip('[]').replace(' ', 
 
 best_acc = 0  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
-epochs = 200
 
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 20 epochs"""
-    # lr = lr/exp10(epoch/10)
     lr = lr/np.exp(epoch/10)
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
-
-def cropandflip(npimg2d):
-    imgpad  = np.zeros( (200,255), dtype=np.float32 )
-    transformimg = np.zeros( (200,255, 3), dtype=np.float32)
-    flip1 = np.random.rand()
-    flip2 = np.random.rand()
-    for i in range(3):
-        imgpad[:,:] = npimg2d[ :,:,i]
-        #if flip1>0.5:
-        #    imgpad = np.flip( imgpad, 0 )
-        #if flip2>0.5:
-        #    imgpad = np.flip( imgpad, 1 )
-        transformimg[:,:,i] = imgpad[:,:]
-    return transformimg
 
 # Training
 def train(trainloader, epoch):
@@ -81,6 +62,7 @@ def train(trainloader, epoch):
         optimizer.zero_grad()
         outputs = net(inputs)
         loss = criterion(outputs, targets)
+        print(loss)
         loss.backward()
         optimizer.step()
 
@@ -169,17 +151,21 @@ if __name__ == "__main__":
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument('--save_all', action='store_true', default=False, help='save all training records')
     parser.add_argument('--tag', '-t', action='store_true', default=False, help='tag event with trained network')
-    parser.add_argument('--channels', '-n', type=int, default=2, help='Input Channels')
     parser.add_argument('--start', '-s', type=int, default=0, help='start epoch')
-    parser.add_argument('--csv', '-c', type=str, default='test.csv', help='csv files of training sample')
-    parser.add_argument('--h5file', '-d', type=str, default='test.h5', help='h5 files of training sample')
-
+    parser.add_argument('--config', '-f', type=str, default="baseline.yml", help="specify yaml config")
     args = parser.parse_args()
-    transformations = transforms.Compose([transforms.ToTensor()])
-    
+    # parameters
+    config = yaml_load(args.config)
+    data_name = config['data']['name']
+    h5file = config['data']['h5name']
+    fcsv = config['data']['csv']
+    input_shape = [int(i) for i in config['data']['input_shape']]
+    lr = config['fit']['compile']['initial_lr']
+    batch_size = config['fit']['batch_size']
+
     # Data
     print('==> Preparing data..')
-    nEXODataset = VertexDataset(args.h5file, args.csv, n_channels=args.channels)
+    nEXODataset = VertexDataset(h5file, fcsv, n_channels=input_shape[2])
     # Creating data indices for training and validation splits:
     dataset_size = len(nEXODataset)
     indices = list(range(dataset_size))
@@ -193,23 +179,18 @@ if __name__ == "__main__":
     train_indices, val_indices = indices[split:], indices[:split]
 
     # Creating PT data samplers and loaders:
-    batch_size = 256
     train_sampler = SubsetRandomSampler(train_indices)
     validation_sampler = SubsetRandomSampler(val_indices)
     train_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=batch_size, sampler=train_sampler, num_workers=0)
     validation_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=batch_size, sampler=validation_sampler, num_workers=0)
 
-    lr = args.lr
     momentum = 0.9
-    # Weight_decay = 1.0e-3
     weight_decay = 5.0e-3
-    batchsize_valid = 500
     start_epoch = 0
-    epochs      = 12
+    epochs      = 30
 
     print('==> Building model..')
-    # net = preact_resnet.PreActResNet18(num_channels=args.channels)
-    net = resnet18(input_channels=args.channels)
+    net = resnet18(input_channels=input_shape[2])
     # Define loss function (criterion) and optimizer
     criterion = nn.MSELoss().cuda()
     # We use SGD

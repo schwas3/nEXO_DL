@@ -77,6 +77,30 @@ class DenseDataset(data.Dataset):
         img = np.transpose(img, (2,0,1)) #the initial image building put the layer index at axe 3.
         return torch.from_numpy(img).type(torch.FloatTensor), eventtype
 
+class VertexDataset(data.Dataset):
+    def __init__(self, h5_path, csv_path, n_channels=2):
+        """ This class yields events from pregenerated MC file.
+        Parameters:
+            csv_path : str; csv file containing file/event information to read
+            h5path : str; name of H5 data file 
+        """
+        self.to_tensor = transforms.ToTensor()
+        csv_info = pd.read_csv(csv_path, header=None)
+        self.groupname = np.asarray(csv_info.iloc[:,0])
+        self.datainfo = np.asarray(csv_info.iloc[:,1])
+        self.h5file = h5py.File(h5_path, 'r')
+        self.n_channels = n_channels
+
+    def __len__(self):
+        return len(self.datainfo)
+
+    def __getitem__(self, idx):
+        dset_entry = self.h5file[self.groupname[idx]][self.datainfo[idx]]
+        xy = np.array(dset_entry.attrs[u'vertex'][:2], dtype=np.float32)
+        img = np.array(dset_entry)[:,:,:self.n_channels]
+        img = np.transpose(img, (2,0,1)) #the initial image building put the layer index at axe 3.
+        return torch.from_numpy(img).type(torch.FloatTensor), xy 
+
 class DatasetFromSparseMatrix(data.Dataset):
     def __init__(self, h5_path, csv_path, n_channels=2):
         self.to_tensor = transforms.ToTensor()
@@ -119,10 +143,11 @@ class CathodeSimData(torch.utils.data.Dataset):
         y = np.array(dset_entry[:, 1]).astype(int)
         z = np.array(dset_entry[:, 2]).astype(int)
         #img = np.zeros((20, 256, 256))
+        #print(np.mean(dset_entry[:,3]), np.std(dset_entry[:,3]), np.max(dset_entry[:,3]))
         img = np.random.normal(0, 2.75, size=(20, 256, 256))
         for i, j, k, v in zip(x, y, z, dset_entry[:,3]):
-            img[k, i, j] = v
-        img[img<6] = 0
+            img[k, i, j] = v*2
+        img[img<9.0] = 0
         return torch.from_numpy(img).type(torch.FloatTensor), eventtype, dset_entry.attrs[u'energy']
 
     def __len__(self):
@@ -135,7 +160,8 @@ class CathodeSimData(torch.utils.data.Dataset):
     
 def test():
     dataset = CathodeSimData('/expanse/lustre/scratch/zli10/temp_project/cathodesim/nexo.csv', '/expanse/lustre/scratch/zli10/temp_project/cathodesim/nexo.h5')
-    print(1, dataset[4][0].shape)
+    for i in range(1900, 2100):
+        print(i, np.count_nonzero(dataset[i][0]), dataset[i][1])
     #print(1, dataset[1][4].shape)
 
 if __name__ == '__main__':
