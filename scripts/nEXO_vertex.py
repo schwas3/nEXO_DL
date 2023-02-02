@@ -135,6 +135,7 @@ if __name__ == "__main__":
     input_shape = [int(i) for i in config['data']['input_shape']]
     lr = config['fit']['compile']['initial_lr']
     batch_size = config['fit']['batch_size']
+    epochs = config['fit']['epochs']
 
     # Data
     print('==> Preparing data..')
@@ -160,7 +161,6 @@ if __name__ == "__main__":
     momentum = 0.9
     weight_decay = 5.0e-3
     start_epoch = 0
-    epochs      = 30
 
     print('==> Building model..')
     net = resnet18(input_channels=input_shape[2])
