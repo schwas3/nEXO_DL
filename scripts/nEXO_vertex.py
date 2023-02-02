@@ -4,7 +4,6 @@
 #Dataset code copied from https://github.com/utkuozbulak/pytorch-custom-dataset-examples
 #model code copied from https://github.com/DeepLearnPhysics/pytorch-uresnet
 import numpy as np
-from scipy.special import exp10
 import torch
 import torch.nn as nn
 from torch.utils.data.sampler import SubsetRandomSampler
@@ -48,8 +47,6 @@ def train(trainloader, epoch):
     # print('\nEpoch: %d' % epoch)
     net.train()
     train_loss = 0
-    #correct = 0
-    total = 0
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
@@ -60,12 +57,12 @@ def train(trainloader, epoch):
 
         train_loss += loss.item()
         print(batch_idx, '/', len(trainloader), 'Loss: %.3f ' % (train_loss/(batch_idx+1.)))
-    return train_loss/len(trainloader) #, 100.*correct/total
+    return train_loss/len(trainloader) 
 
-def test(testloader, epoch, saveall=False):
+def test(testloader, epoch):
+    global valid_loss_min
     net.eval()
     test_loss = 0
-    total = 0
     score = []
     
     with torch.no_grad():
@@ -97,11 +94,7 @@ def test(testloader, epoch, saveall=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch nEXO background rejection')
-    parser.add_argument('--lr', default=1.0e-3, type=float, help='learning rate')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-    parser.add_argument('--save_all', action='store_true', default=False, help='save all training records')
-    parser.add_argument('--tag', '-t', action='store_true', default=False, help='tag event with trained network')
-    parser.add_argument('--start', '-s', type=int, default=0, help='start epoch')
     parser.add_argument('--config', '-f', type=str, default="baseline.yml", help="specify yaml config")
     args = parser.parse_args()
     # parameters
@@ -135,8 +128,6 @@ if __name__ == "__main__":
     train_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=batch_size, sampler=train_sampler, num_workers=0)
     validation_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=batch_size, sampler=validation_sampler, num_workers=0)
 
-    momentum = 0.9
-    weight_decay = 5.0e-3
     start_epoch = 0
 
     print('==> Building model..')
@@ -171,12 +162,12 @@ if __name__ == "__main__":
     if args.resume and os.path.exists('./training_outputs/loss_acc.npy'):
         arrays_resumed = np.load('./training_outputs/loss_acc.npy', allow_pickle=True)
         y_train_loss = arrays_resumed[0]
-        y_valid_loss = arrays_resumed[2]
-        test_score   = arrays_resumed[4].tolist()
+        y_valid_loss = arrays_resumed[1]
+        test_score   = arrays_resumed[2] #.tolist()
     else:
         y_train_loss = np.array([])
         y_valid_loss = np.array([])
-        test_score   = []
+        test_score   = np.array([])
     
     for epoch in range(start_epoch, start_epoch + epochs):
         # Set the learning rate
@@ -199,7 +190,7 @@ if __name__ == "__main__":
 
             # Evaluate on validationset
             try:
-                valid_loss, score = test(validation_loader, epoch, args.save_all)
+                valid_loss, score = test(validation_loader, epoch)
             except Exception as e:
                 print("Error in validation routine!")
                 print(e.message)
@@ -209,7 +200,7 @@ if __name__ == "__main__":
                 
             print("Test[%d]: Result* Loss %.3f\t "%(epoch, valid_loss))
             
-            test_score.append(score)
+            test_score = np.append(test_score, score)
             y_valid_loss = np.append(y_valid_loss, valid_loss)
             
             np.save('./training_outputs/loss_acc.npy', np.array([y_train_loss, y_valid_loss, test_score], dtype=object))

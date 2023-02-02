@@ -4,22 +4,15 @@
 #Dataset code copied from https://github.com/utkuozbulak/pytorch-custom-dataset-examples
 #model code copied from https://github.com/DeepLearnPhysics/pytorch-uresnet
 
-import pandas as pd
 import numpy as np
 from numpy import load
-import scipy.misc
-from scipy.special import exp10
 import os
-import sys
-sys.path.append("..")
 
 import torch
 import torch.nn as nn
 from torchvision import transforms
-from torch.utils.data.dataset import Dataset  # For custom datasets
 from torch.utils.data.sampler import SubsetRandomSampler
 import os
-import shutil
 
 import torch.optim as optim
 import torch.nn.functional as F
@@ -27,15 +20,12 @@ import torch.backends.cudnn as cudnn
 from torch.optim import lr_scheduler
 
 import argparse
-from networks.preact_resnet import PreActResNet18
+#from networks.preact_resnet import PreActResNet18
 from networks.resnet_example import resnet18
 from utils.data_loaders import DenseDataset
 from utils.data_loaders import DatasetFromSparseMatrix
 import traceback
-#import matplotlib.pyplot as plt
-import pickle
 
-#device = 'cuda'
 if torch.cuda.is_available():
     device = 'cuda'
 else:
@@ -50,62 +40,9 @@ epochs = 200
 
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 20 epochs"""
-    # lr = lr/exp10(epoch/10)
     lr = lr/np.exp(epoch/10)
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
-
-def cropandflip(npimg2d):
-    imgpad  = np.zeros( (200,255), dtype=np.float32 )
-    transformimg = np.zeros( (200,255, 3), dtype=np.float32)
-    flip1 = np.random.rand()
-    flip2 = np.random.rand()
-    for i in range(3):
-        imgpad[:,:] = npimg2d[ :,:,i]
-        #if flip1>0.5:
-        #    imgpad = np.flip( imgpad, 0 )
-        #if flip2>0.5:
-        #    imgpad = np.flip( imgpad, 1 )
-        transformimg[:,:,i] = imgpad[:,:]
-    return transformimg
-
-class nEXODatasetFromImages(Dataset):
-    def __init__(self, csv_path):
-        """
-        Args:
-            csv_path (string): path to csv file
-            img_path (string): path to the folder where images are
-            transform: pytorch transforms for transforms and tensor conversion
-        """
-        # Transforms
-        self.to_tensor = transforms.ToTensor()
-	    # Read the csv file
-        self.data_info = pd.read_csv(csv_path, header=None)
-        # First column contains the image paths
-        self.image_arr = np.asarray(self.data_info.iloc[:, 0])
-        # Second column is the labels
-        self.label_arr = np.asarray(self.data_info.iloc[:, 1])
-        # Calculate len
-        self.data_len = len(self.data_info.index)
-
-    def __getitem__(self, index):
-        # Get image name from the pandas df
-        single_image_name = self.image_arr[index]
-        # Open image
-        npimg = load(single_image_name, allow_pickle=True).astype(np.float32)
-        if npimg.max() > 65500 or npimg.min() < -65500:
-            index = index - 1
-            single_image_name = self.image_arr[index]
-            npimg = load(single_image_name, allow_pickle=True).astype(np.float32)
-        # Transform image to tensor.
-        img_as_tensor = self.to_tensor(npimg).type(torch.FloatTensor)
-        # Get label(class) of the image based on the cropped pandas column
-        single_image_label = self.label_arr[index]
-
-        return (img_as_tensor, single_image_label)
-
-    def __len__(self):
-        return self.data_len
 
 # Training
 def train(trainloader, epoch):
@@ -179,7 +116,6 @@ def test(testloader, epoch, saveall=False):
         best_acc = acc
     # Otherwise only save the best one
     elif acc > best_acc:
-        is_better = True
         print ('Saving...')
         state = {
             'net': net.state_dict(),
@@ -194,43 +130,28 @@ def test(testloader, epoch, saveall=False):
         torch.save(state, './checkpoint_sens/ckpt.t7' )
         best_acc = acc
         
-    return test_loss/len(testloader), 100.*correct/total, score, is_better
+    return test_loss/len(testloader), 100.*correct/total, score
 
-def TagEvent(event):
-    
-    global best_acc
-    net.eval()
-    npimg = load(event , allow_pickle=True).astype(np.float32)
-    # npimg = (npimg - npimg.min())/(npimg.max() - npimg.min())
-    # Transform image to tensor
-    img_as_tensor = self.to_tensor(npimg).type(torch.FloatTensor)
-    img_as_tensor = torch.unsqueeze(img_as_tensor, 0)
-    softmax = nn.Softmax()
-    
-    with torch.no_grad():
-        img_as_tensor = img_as_tensor.to(device)
-        output = net(img_as_tensor)
-        # print(output.shape)
-        # print(softmax(output)[0][1].item())
-        return softmax(output[0])[1].item()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch nEXO background rejection')
-    parser.add_argument('--lr', default=1.0e-3, type=float, help='learning rate')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-    parser.add_argument('--save_all', action='store_true', default=False, help='save all training records')
-    parser.add_argument('--tag', '-t', action='store_true', default=False, help='tag event with trained network')
-    parser.add_argument('--channels', '-n', type=int, default=2, help='Input Channels')
-    parser.add_argument('--start', '-s', type=int, default=0, help='start epoch')
-    parser.add_argument('--csv', '-c', type=str, default='test.csv', help='csv files of training sample')
-    parser.add_argument('--h5file', '-d', type=str, default='test.h5', help='h5 files of training sample')
-
-    args = parser.parse_args()
-    transformations = transforms.Compose([transforms.ToTensor()])
+    parser.add_argument('--config', '-f', type=str, default="baseline.yml", help="specify yaml config")
     
+    args = parser.parse_args()
+    # parameters
+    config = yaml_load(args.config)
+    data_name = config['data']['name']
+    h5file = config['data']['h5name']
+    fcsv = config['data']['csv']
+    input_shape = [int(i) for i in config['data']['input_shape']]
+    lr = config['fit']['compile']['initial_lr']
+    batch_size = config['fit']['batch_size']
+    epochs = config['fit']['epochs']
+
     # Data
     print('==> Preparing data..')
-    nEXODataset = DatasetFromSparseMatrix(args.h5file, args.csv, n_channels=args.channels)
+    nEXODataset = DatasetFromSparseMatrix(h5file, fcsv, n_channels=input_shape[2])
     # Creating data indices for training and validation splits:
     dataset_size = len(nEXODataset)
     indices = list(range(dataset_size))
@@ -244,23 +165,16 @@ if __name__ == "__main__":
     train_indices, val_indices = indices[split:], indices[:split]
 
     # Creating PT data samplers and loaders:
-    batch_size = 256
     train_sampler = SubsetRandomSampler(train_indices)
     validation_sampler = SubsetRandomSampler(val_indices)
     train_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=batch_size, sampler=train_sampler, num_workers=0)
     validation_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=batch_size, sampler=validation_sampler, num_workers=0)
 
-    lr = args.lr
-    momentum = 0.9
-    # Weight_decay = 1.0e-3
-    weight_decay = 5.0e-3
-    batchsize_valid = 500
     start_epoch = 0
-    epochs      = 12
 
     print('==> Building model..')
     # net = preact_resnet.PreActResNet18(num_channels=args.channels)
-    net = resnet18(input_channels=args.channels)
+    net = resnet18(input_channels=input_shape[2])
     # Define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
     # We use SGD
@@ -287,27 +201,6 @@ if __name__ == "__main__":
         best_acc = checkpoint['acc']
         start_epoch = checkpoint['epoch'] + 1
         
-    if args.tag:
-        # Use trained network to tag event.
-        print('==> Load the network from checkpoint..')
-        assert os.path.isdir('checkpoint_sens'), 'Error: no checkpoint directory found!'
-        if device == 'cuda':
-            checkpoint = torch.load('./checkpoint_sens/ckpt.t7' )
-        else:
-            checkpoint = torch.load('./checkpoint_sens/ckpt.t7', map_location=torch.device('cpu') )
-        net.load_state_dict(checkpoint['net'])
-        import glob
-        files = glob.glob('tl208/*')
-        tags_bb0n = []
-        tagresult = open('quicktest.txt', 'w')
-        for exfile in files:
-            extag = TagEvent(exfile)
-            tagresult.write("%s %f\n" % (exfile, extag))
-            tags_bb0n.append(extag)
-
-        # plt.hist(np.array(tags_bb0n), bins = np.linspace(0, 1, 100))
-        # plt.savefig('gamma_tag.pdf')
-
     # Numpy arrays for loss and accuracy, if resume from check point then read the previous results
     if args.resume and os.path.exists('./training_outputs/loss_acc.npy'):
         arrays_resumed = np.load('./training_outputs/loss_acc.npy', allow_pickle=True)
@@ -345,7 +238,7 @@ if __name__ == "__main__":
 
             # Evaluate on validationset
             try:
-                valid_loss, prec1, score, is_better = test(validation_loader, epoch, args.save_all)
+                valid_loss, prec1, score= test(validation_loader, epoch, args.save_all)
             except Exception as e:
                 print("Error in validation routine!")
                 print(e.message)
@@ -359,13 +252,4 @@ if __name__ == "__main__":
             y_valid_loss = np.append(y_valid_loss, valid_loss)
             y_valid_acc = np.append(y_valid_acc, prec1)
             
-            # If we want to save all training records
-            if args.save_all:
-                np.save('./training_outputs/loss_acc.npy', np.array([y_train_loss, y_train_acc, y_valid_loss, y_valid_acc, test_score], dtype=object))
-            # Otherwise only save the best one
-            elif is_better:
-                # print (np.array(test_score).shape)
-                np.save('./training_outputs/loss_acc.npy', np.array([y_train_loss, y_train_acc, y_valid_loss, y_valid_acc, test_score], dtype=object))
-        
-    # print(y_train_loss, y_train_acc, y_valid_loss, y_valid_acc)
-    # np.save('test_score_%d.npy' % (start_epoch + 1), test_score)
+            np.save('./training_outputs/loss_acc.npy', np.array([y_train_loss, y_train_acc, y_valid_loss, y_valid_acc, test_score], dtype=object))

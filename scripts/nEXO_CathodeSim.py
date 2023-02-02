@@ -4,7 +4,6 @@
 #Dataset code copied from https://github.com/utkuozbulak/pytorch-custom-dataset-examples
 #model code copied from https://github.com/DeepLearnPhysics/pytorch-uresnet
 import numpy as np
-from scipy.special import exp10
 import os
 
 import torch
@@ -39,7 +38,6 @@ start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 20 epochs"""
-    # lr = lr/exp10(epoch/10)
     lr = lr/np.exp(epoch/10)
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
@@ -69,7 +67,7 @@ def train(trainloader, epoch):
             % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
     return train_loss/len(trainloader), 100.*correct/total
 
-def test(testloader, epoch, saveall=False):
+def test(testloader, epoch):
     
     global best_acc
     net.eval()
@@ -98,23 +96,7 @@ def test(testloader, epoch, saveall=False):
     # Save checkpoint.
     acc = 100.*correct/total
     
-    # If we want to save all training records
-    if saveall:
-        print ('Saving...')
-        state = {
-            'net': net.state_dict(),
-            'acc': acc,
-            'epoch': epoch,
-        }
-        if not os.path.isdir('checkpoint_sens'):
-            os.mkdir('checkpoint_sens' )
-        if not os.path.isdir('training_outputs'):
-            os.mkdir('training_outputs')
-        torch.save(state, './checkpoint_sens/ckpt_%d.t7' % epoch)
-        torch.save(state, './checkpoint_sens/ckpt.t7' )
-        best_acc = acc
-    # Otherwise only save the best one
-    elif acc > best_acc:
+    if acc > best_acc:
         print ('Saving...')
         state = {
             'net': net.state_dict(),
@@ -133,9 +115,7 @@ def test(testloader, epoch, saveall=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch nEXO background rejection')
-    parser.add_argument('--lr', default=1.0e-3, type=float, help='learning rate')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-    parser.add_argument('--save_all', action='store_true', default=False, help='save all training records')
     parser.add_argument('--start', '-s', type=int, default=0, help='start epoch')
     parser.add_argument('--config', '-f', type=str, default="baseline.yml", help="specify yaml config")
     
@@ -148,6 +128,7 @@ if __name__ == "__main__":
     input_shape = [int(i) for i in config['data']['input_shape']]
     lr = config['fit']['compile']['initial_lr']
     batch_size = config['fit']['batch_size']
+    epochs = config['fit']['epochs']
     
     # Data
     print('==> Preparing data..')
@@ -165,19 +146,12 @@ if __name__ == "__main__":
     train_indices, val_indices = indices[split:], indices[:split]
 
     # Creating PT data samplers and loaders:
-    batch_size = 50
     train_sampler = SubsetRandomSampler(train_indices)
     validation_sampler = SubsetRandomSampler(val_indices)
     train_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=batch_size, sampler=train_sampler, num_workers=2)
     validation_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=batch_size, sampler=validation_sampler, num_workers=2)
 
-    lr = args.lr
-    momentum = 0.9
-    # Weight_decay = 1.0e-3
-    weight_decay = 5.0e-3
-    batchsize_valid = 500
     start_epoch = 0
-    epochs      = 5
 
     print('==> Building model..')
     net = resnet18(input_channels=input_shape[2])
@@ -214,13 +188,13 @@ if __name__ == "__main__":
         y_train_acc  = arrays_resumed[1]
         y_valid_loss = arrays_resumed[2]
         y_valid_acc  = arrays_resumed[3]
-        test_score   = arrays_resumed[4].tolist()
+        test_score   = arrays_resumed[4] #.tolist()
     else:
         y_train_loss = np.array([])
         y_train_acc  = np.array([])
         y_valid_loss = np.array([])
         y_valid_acc  = np.array([])
-        test_score   = []
+        test_score   = np.array([])
     
     for epoch in range(start_epoch, start_epoch + epochs):
         # Set the learning rate
@@ -244,7 +218,7 @@ if __name__ == "__main__":
 
             # Evaluate on validationset
             try:
-                valid_loss, prec1, score = test(validation_loader, epoch, args.save_all)
+                valid_loss, prec1, score = test(validation_loader, epoch)
             except Exception as e:
                 print("Error in validation routine!")
                 print(e.message)
