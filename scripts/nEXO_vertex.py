@@ -20,6 +20,8 @@ from utils.data_loaders import DatasetFromSparseMatrix
 import traceback
 import yaml 
 
+valid_loss_min = np.inf
+
 def yaml_load(config):
     with open(config) as stream:
         param = yaml.safe_load(stream)
@@ -33,7 +35,6 @@ list_of_gpus = range(torch.cuda.device_count())
 device_ids = range(torch.cuda.device_count())
 os.environ["CUDA_VISIBLE_DEVICES"] = str(list_of_gpus).strip('[]').replace(' ', '')
 
-best_acc = 0  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 
 def adjust_learning_rate(optimizer, epoch, lr):
@@ -62,8 +63,6 @@ def train(trainloader, epoch):
     return train_loss/len(trainloader) #, 100.*correct/total
 
 def test(testloader, epoch, saveall=False):
-    
-    global best_acc
     net.eval()
     test_loss = 0
     total = 0
@@ -80,16 +79,12 @@ def test(testloader, epoch, saveall=False):
                 score.append([target.detach().cpu().numpy(), output.detach().cpu().numpy()])
             print(batch_idx, '/', len(testloader), 'Loss: %.3f ' % (test_loss/(batch_idx+1.)))
 
-    # Save checkpoint.
-    is_better = False
-    #acc = 100.*correct/total
-    
-    # If we want to save all training records
-    if saveall:
+    if test_loss < valid_loss_min:
+        valid_loss_min = test_loss
         print ('Saving...')
         state = {
             'net': net.state_dict(),
-            #'acc': acc,
+            'loss': test_loss,
             'epoch': epoch,
         }
         if not os.path.isdir('checkpoint_sens'):
@@ -97,24 +92,6 @@ def test(testloader, epoch, saveall=False):
         if not os.path.isdir('training_outputs'):
             os.mkdir('training_outputs')
         torch.save(state, './checkpoint_sens/ckpt_%d.t7' % epoch)
-        torch.save(state, './checkpoint_sens/ckpt.t7' )
-        best_acc = acc
-    # Otherwise only save the best one
-    #elif acc > best_acc:
-    #    is_better = True
-    #    print ('Saving...')
-    #    state = {
-    #        'net': net.state_dict(),
-    #        'acc': acc,
-    #        'epoch': epoch,
-    #    }
-    #    if not os.path.isdir('checkpoint_sens'):
-    #        os.mkdir('checkpoint_sens' )
-    #    if not os.path.isdir('training_outputs'):
-    #        os.mkdir('training_outputs')
-    #    torch.save(state, './checkpoint_sens/ckpt_%d.t7' % epoch)
-    #    torch.save(state, './checkpoint_sens/ckpt.t7' )
-    #    best_acc = acc
         
     return test_loss/len(testloader), np.array(score) #, is_better
 
@@ -187,22 +164,18 @@ if __name__ == "__main__":
         else:
             checkpoint = torch.load('./checkpoint_sens/ckpt.t7', map_location=torch.device('cpu') )
         net.load_state_dict(checkpoint['net'])
-        best_acc = checkpoint['acc']
+        valid_loss_min = checkpoint['loss']
         start_epoch = checkpoint['epoch'] + 1
         
-    # Numpy arrays for loss and accuracy, if resume from check point then read the previous results
+    # Numpy arrays for loss, if resume from check point then read the previous results
     if args.resume and os.path.exists('./training_outputs/loss_acc.npy'):
         arrays_resumed = np.load('./training_outputs/loss_acc.npy', allow_pickle=True)
         y_train_loss = arrays_resumed[0]
-        y_train_acc  = arrays_resumed[1]
         y_valid_loss = arrays_resumed[2]
-        y_valid_acc  = arrays_resumed[3]
         test_score   = arrays_resumed[4].tolist()
     else:
         y_train_loss = np.array([])
-        y_train_acc  = np.array([])
         y_valid_loss = np.array([])
-        y_valid_acc  = np.array([])
         test_score   = []
     
     for epoch in range(start_epoch, start_epoch + epochs):
@@ -221,9 +194,8 @@ if __name__ == "__main__":
                 print(e.__class__.__name__)
                 traceback.print_exc(e)
                 break
-            #print("Train[%d]: Result* Loss %.3f\t Accuracy: %.3f"%(epoch, train_ave_loss, train_ave_acc))
+            print("Train[%d]: Result* Loss %.3f\t "%(epoch, train_ave_loss))
             y_train_loss = np.append(y_train_loss, train_ave_loss)
-            #y_train_acc = np.append(y_train_acc, train_ave_acc)
 
             # Evaluate on validationset
             try:
@@ -235,19 +207,9 @@ if __name__ == "__main__":
                 traceback.print_exc(e)
                 break
                 
-            #print("Test[%d]: Result* Loss %.3f\t Precision: %.3f"%(epoch, valid_loss, prec1))
+            print("Test[%d]: Result* Loss %.3f\t "%(epoch, valid_loss))
             
             test_score.append(score)
             y_valid_loss = np.append(y_valid_loss, valid_loss)
-            #y_valid_acc = np.append(y_valid_acc, prec1)
             
-            # If we want to save all training records
-            #if args.save_all:
-            np.save('./training_outputs/loss_acc.npy', np.array([y_train_loss, y_train_acc, y_valid_loss, y_valid_acc, test_score], dtype=object))
-            # Otherwise only save the best one
-            #elif is_better:
-            #    # print (np.array(test_score).shape)
-            #    np.save('./training_outputs/loss_acc.npy', np.array([y_train_loss, y_train_acc, y_valid_loss, y_valid_acc, test_score], dtype=object))
-        
-    # print(y_train_loss, y_train_acc, y_valid_loss, y_valid_acc)
-    # np.save('test_score_%d.npy' % (start_epoch + 1), test_score)
+            np.save('./training_outputs/loss_acc.npy', np.array([y_train_loss, y_valid_loss, test_score], dtype=object))
