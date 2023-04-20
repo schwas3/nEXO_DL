@@ -188,7 +188,7 @@ short_cmds='''0
 25 -q -Q -N
 50 -q -Q -N
 100 -q -Q -N'''.split('\n')
-short_names = ['%s%s_Q%i_%s-Q_%s'%(prefix,i.split()[0],'-q'in i,['fixed','reseeded']['-Q'in i],['fixed','reseeded']['-N'in i])for i in a]
+# short_names = ['%s%s_Q%i_%s-Q_%s'%(prefix,i.split()[0],'-q'in i,['fixed','reseeded']['-Q'in i],['fixed','reseeded']['-N'in i])for i in ]
 fig,ax = plt.subplots(figsize=(50,40))
 for short_cmd in short_cmds:
     index = short_cmds.index(short_cmd)
