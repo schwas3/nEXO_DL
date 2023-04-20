@@ -1,0 +1,8 @@
+*.t7
+*.err
+*.out
+*.serr
+*.sout
+*.sh
+*.npy
+*.pyc
