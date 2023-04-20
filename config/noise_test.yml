@@ -1,0 +1,22 @@
+save_dir: /p/lustre2/nexouser/scotswas/DNN_study/nEXO_DL/scripts/output/
+data:
+  name: nexo
+  h5name: /p/vast1/nexo/nexo_deeplearning_share/merged_130k_NoiseCut670.h5
+  csv: /p/vast1/nexo/nexo_deeplearning_share/merged_130k_NoiseCut670.csv
+  input_shape:
+  - 200
+  - 255
+  - 2
+model:
+  name: resnet18
+
+fit:
+  compile:
+    initial_lr: 0.001
+    lr_decay: 0.99
+    optimizer: Adam
+    loss: MSE 
+  epochs: 20
+  patience: 1000
+  batch_size: 200
+

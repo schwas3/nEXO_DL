@@ -121,6 +121,61 @@ class DatasetFromSparseMatrix(data.Dataset):
                                    h5_entry['indptr_y'][:]), h5_entry.attrs['shape_y'], dtype=np.float32).todense() 
         eventtype = 1 if h5_entry.attrs[u'tag']=='e-' else 0
         img = np.array([dset_entry_x, dset_entry_y])
+        # print(img.shape)
+        return torch.from_numpy(img).type(torch.FloatTensor), eventtype
+
+class NoisedDatasetFromSparseMatrix(data.Dataset):
+    def __init__(self, h5_path, csv_path, n_channels=2, noise_amplitude=0, restore_quiet = False):
+        self.to_tensor = transforms.ToTensor()
+        csv_info = pd.read_csv(csv_path, header=None)
+        self.groupname = np.asarray(csv_info.iloc[:,0])
+        self.datainfo = np.asarray(csv_info.iloc[:,1])
+        self.h5file = h5py.File(h5_path, 'r')
+        self.n_channels = n_channels
+        self.seed_list1 = []
+        self.seed_list2 = []
+        self.noise_amplitude = noise_amplitude
+        self.restore_quiet = restore_quiet
+
+    def __len__(self):
+        return len(self.datainfo)
+    
+    def __getitem__(self, idx):
+        h5_entry = self.h5file[self.groupname[idx]][self.datainfo[idx]]
+        dset_entry_x = csr_matrix((h5_entry['data_x'][:], h5_entry['indices_x'][:],
+                                   h5_entry['indptr_x'][:]), h5_entry.attrs['shape_x'], dtype=np.float32).todense()
+        dset_entry_y = csr_matrix((h5_entry['data_y'][:], h5_entry['indices_y'][:],
+                                   h5_entry['indptr_y'][:]), h5_entry.attrs['shape_y'], dtype=np.float32).todense() 
+        eventtype = 1 if h5_entry.attrs[u'tag']=='e-' else 0
+        img = np.array([dset_entry_x, dset_entry_y])
+        print(img.shape)
+        active_channels = np.any(img,2,keepdims=True)
+        quiet_channels = np.all(img==0,2,keepdims=True)
+        active_times = np.any(img,(0,1),keepdims=True)
+        print((quiet_channels*active_times).shape)
+        print(quiet_channels.shape,active_channels.shape,active_times.shape,(active_channels*active_times).shape)
+        if self.restore_quiet:
+            # -print((1-active_channels).shape,active_channels.shape)
+            active_quiet = quiet_channels * active_times
+            print(active_quiet.shape)
+            # -print(img[active_quiet].shape,np.array(active_quiet).shape)
+            np.random.seed(self.seed_list2[idx])
+            img[active_quiet] += np.random.normal(0,25,np.sum(active_quiet))
+            active = active_times
+            # print(active.shape)
+            np.random.seed(self.seed_list1[idx])
+            mask = np.random.normal(0,25,(2,200,np.sum(active_times)))
+            img[:,:,active_times[0,0]] += mask * self.noise_amplitude
+        else:
+            active = active_channels * active_times
+            # print(active.shape)
+        # print(img[active_channels].shape)
+        # print(np.sum(active_channels))
+        # print(self.seed_list[idx])
+            np.random.seed(self.seed_list1[idx])
+            mask = np.random.normal(0,25,np.sum(active))
+            print(active.shape)
+            img[active] += mask * self.noise_amplitude
         return torch.from_numpy(img).type(torch.FloatTensor), eventtype
 
 class CathodeSimData(torch.utils.data.Dataset):
