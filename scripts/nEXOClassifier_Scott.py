@@ -153,12 +153,13 @@ if __name__ == "__main__":
     parser.add_argument('--reseed_quiet', '-Q', action='store_true',help='1_\{123\} for restoring quiet channels (reseed restoration of RMS noise each epoch)')
     parser.add_argument('--reseed_noise', '-N', action='store_true',help='X_\{123\} for excess noise (reseed excess noise each epoch)')
     parser.add_argument('--run', '-R', action='store_true',help='run nEXOClassifier')
+    parser.add_argument('--mislabeled_gammas_as_electrons', '-m', type=float, default=0, help='Percent of training gammas to label as electrons')
 
     args = parser.parse_args()
 
     config = yaml_load(args.config)
-    filename_prefix = config['save_dir'] + args.prefix + ('%g_%s_%s_%s'%(args.noise_amp,['Q0','Q1'][1*args.restore_quiet],['fixed','reseeded'][1*args.reseed_quiet]+'-Q',['fixed','reseeded'][1*args.reseed_noise]))
-    shortname_prefix = '/' + args.prefix + ('%g_%s_%s_%s'%(args.noise_amp,['Q0','Q1'][1*args.restore_quiet],['fixed','reseeded'][1*args.reseed_quiet]+'-Q',['fixed','reseeded'][1*args.reseed_noise])) + '_'
+    filename_prefix = config['save_dir'] + args.prefix + ('%g_%s_%s_%s_%s'%(args.noise_amp,['Q0','Q1'][1*args.restore_quiet],['fixed','reseeded'][1*args.reseed_quiet]+'-Q',['fixed','reseeded'][1*args.reseed_noise],args.mislabeled_gammas_as_electrons))
+    shortname_prefix = '/' + args.prefix + ('%g_%s_%s_%s_%s'%(args.noise_amp,['Q0','Q1'][1*args.restore_quiet],['fixed','reseeded'][1*args.reseed_quiet]+'-Q',['fixed','reseeded'][1*args.reseed_noise],args.mislabeled_gammas_as_electrons)) + '_'
 
     if not os.path.isdir(filename_prefix):
         os.mkdir(filename_prefix)
@@ -194,6 +195,11 @@ if __name__ == "__main__":
             np.random.seed(random_seed)
             np.random.shuffle(indices)
         train_indices, val_indices = indices[split:], indices[:split]
+        train_indices = np.array(train_indices)
+
+        mislabeled_gammas = round(args.mislabeled_gammas_as_electrons / 100 * dataset_size)
+        mislabeled_train_indices = (train_indices[train_indices>=129752])[:mislabeled_gammas]
+        nEXODataset.mislabeled_indices = mislabeled_train_indices
 
         sq1 = np.random.SeedSequence()
         sq2 = np.random.SeedSequence()
@@ -324,7 +330,7 @@ source /p/vast1/nexo/tioga_software/tioga-torch/bin/activate
 cd /p/lustre2/nexouser/scotswas/DNN_study/nEXO_DL
 source setup.sh
 cd scripts
-python nEXOClassifier_Scott.py %s--config %s --noise_amp %g -p %s %s%s%s-R > %s.out 2> %s.err""" % (jobName,'-r '*args.resume,args.config,args.noise_amp,args.prefix,'-q '*args.restore_quiet,'-Q '*args.reseed_quiet,'-N '*args.reseed_noise,filename_prefix + shortname_prefix[:-1], filename_prefix + shortname_prefix[:-1]))
+python nEXOClassifier_Scott.py %s--config %s --noise_amp %g -p %s %s%s%s-m %s -R > %s.out 2> %s.err""" % (jobName,'-r '*args.resume,args.config,args.noise_amp,args.prefix,'-q '*args.restore_quiet,'-Q '*args.reseed_quiet,'-N '*args.reseed_noise,args.mislabeled_gammas_as_electrons,filename_prefix + shortname_prefix[:-1], filename_prefix + shortname_prefix[:-1]))
 
         if args.submit:
             print(cmd)
