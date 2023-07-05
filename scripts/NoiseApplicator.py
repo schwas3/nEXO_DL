@@ -167,14 +167,100 @@ epochs = config['fit']['epochs']
 # h5file2=[h5file]
 
 
-#%%
-from utils.data_loaders import NoisedDatasetFromSparseMatrix,DatasetFromSparseMatrix
+# #%%
 
-# Data
-# nEXODataset1 = DatasetFromSparseMatrix(h5_path, fcsv, n_channels=input_shape[2])
-# nEXODataset2 = NoisedDatasetFromSparseMatrix(h5_path, fcsv, n_channels=input_shape[2],seed=1,noise_amplitude=1)
-# nEXODataset2 = NoisedDatasetFromSparseMatrix(h5_path, fcsv, n_channels=input_shape[2],seed=1,noise_amplitude=0)
-# print(1)
+# # Data
+# nEXODataset1 = NoisedDatasetFromSparseMatrix(h5_path, fcsv, n_channels=input_shape[2])
+# print(len(nEXODataset1))
+# print(nEXODataset1[129753][1])
+# nEXODataset1.mislabeled_indices = [129753]
+# print(nEXODataset1[129753][1])
+
+
+# # print(nEXODataset1[129752][1])
+# # nEXODataset2 = NoisedDatasetFromSparseMatrix(h5_path, fcsv, n_channels=input_shape[2],seed=1,noise_amplitude=1)
+# # nEXODataset2 = NoisedDatasetFromSparseMatrix(h5_path, fcsv, n_channels=input_shape[2],seed=1,noise_amplitude=0)
+# # print(1)
+
+#%%
+# noise plots (subplots only 1/25 waves shown)
+from utils.data_loaders import NoisedDatasetFromSparseMatrix,DatasetFromSparseMatrix
+fig=plt.figure(figsize=(50,5))
+nEXODataset = NoisedDatasetFromSparseMatrix(h5_path, fcsv, n_channels=input_shape[2],noise_amplitude=0,restore_quiet=True)
+sq1 = np.random.SeedSequence()
+sq2 = np.random.SeedSequence()
+seed1 = sq1.entropy
+seed2 = sq2.entropy
+dataset_size = len(nEXODataset)
+print('seed1:', seed1,'seed2:', seed2)
+if 0: # determines whether to reseed noise each time (should NOT bc that would look bad probably?)
+    nEXODataset.seed_list1 = sq1.generate_state(dataset_size)
+# DO FIX THE RENOISE SEED
+nEXODataset.seed_list2 = sq2.generate_state(dataset_size)
+j = 0
+for noise_amplitude in [0,.5,1,2,4]:
+    plt.subplot(1,5,j+1)
+    nEXODataset.seed_list1 = sq1.generate_state(dataset_size)
+    nEXODataset.noise_amplitude = noise_amplitude
+    n1 = nEXODataset[0]
+    n1 = n1[0]
+    n1 = np.array(n1)
+    n1 = n1[0][::25]
+    k = 0
+    for n in n1:
+        plt.plot(np.arange(255),n+k*400)#,label=noise_amplitude)
+        k += 1
+    j+=1
+    plt.yticks([])
+    plt.xlabel('time (not in linear units)',fontsize=20)
+    plt.ylabel('Waveform amplitude',fontsize=20)
+    plt.title('Excess Noise = %g'%noise_amplitude,fontsize=24)
+# plt.legend()
+plt.show()
+#%%
+# plots of all waveforms (x and y)
+from utils.data_loaders import NoisedDatasetFromSparseMatrix,DatasetFromSparseMatrix
+fig=plt.figure(figsize=(20,15))
+nEXODataset = NoisedDatasetFromSparseMatrix(h5_path, fcsv, n_channels=input_shape[2],noise_amplitude=0,restore_quiet=True)
+sq1 = np.random.SeedSequence()
+sq2 = np.random.SeedSequence()
+seed1 = sq1.entropy
+seed2 = sq2.entropy
+dataset_size = len(nEXODataset)
+print('seed1:', seed1,'seed2:', seed2)
+if 0: # determines whether to reseed noise each time (should NOT bc that would look bad probably?)
+    nEXODataset.seed_list1 = sq1.generate_state(dataset_size)
+# DO FIX THE RENOISE SEED
+nEXODataset.seed_list2 = sq2.generate_state(dataset_size)
+j = 0
+for noise_amplitude in [0]:#,.5,1,2,4]:
+    # plt.subplot(1,5,j+1)
+    nEXODataset.seed_list1 = sq1.generate_state(dataset_size)
+    nEXODataset.noise_amplitude = noise_amplitude
+    n1 = nEXODataset[200001]
+    print(n1[1])
+    n1 = n1[0]
+    n1 = np.array(n1)
+    # n1 = n1[0][::]
+    k = 0
+    plt.subplot(121)
+    plt.title('X-channels',fontsize=24)
+    for n2 in n1:
+        for n in n2:
+            plt.plot(np.arange(255),n+k*400)#,label=noise_amplitude)
+            k += 1
+        # plt.yticks([])
+        plt.yticks([])
+        plt.xlabel('time (not in linear units)',fontsize=20)
+        plt.ylabel('Waveform amplitude',fontsize=20)
+        plt.subplot(122)
+        plt.title('Y-channels',fontsize=24)
+    j+=1
+    # plt.title('Excess Noise = %g'%noise_amplitude,fontsize=24)
+# plt.legend()
+plt.suptitle('Gamma Event',fontsize=28)
+plt.show()
+
 #%%
 
 
@@ -212,11 +298,11 @@ n2=np.array(n2)
 n3=np.array(n3)
 # data=np.array(np.any(n1,2))
 # -print(data.shape)
-fig=plt.figure(figsize=(30,15))
+fig=plt.figure(figsize=(50,15))
 # plt.subplot(121)
-# [plt.plot(np.arange(255),n1[0,i]+10*i)for i in range(0,200,5)]
+# [plt.plot(np.arange(255),n1[0,i]+10*i)for i in range(z0,z1,1)]
 # plt.subplot(122)
-# [plt.plot(np.arange(255),n1[1,i]+10*i)for i in range(0,200,5)]
+# [plt.plot(np.arange(255),n1[1,i]+10*i)for i in range(z0,z1,1)]
 # print(n1[data].shape)
 # n1[data]+=np.random.normal(0,100,255)
 # plt.subplot(121)
@@ -224,33 +310,45 @@ fig=plt.figure(figsize=(30,15))
 # active_times = np.any(n1,(0,1),keepdims=1)
 # print(n1[0][121])
 # print(n1[np.any(n1,2)][:,np.any(n1,(0,1))].shape)
-# n1=n1[0]
+n1x=n1[1][97:]
 # n2=n2[0]
-# n1 = n1[np.any(np.abs(n2),1)]
+# n1x = n1x[np.any(np.abs(n1x),1)]
 # n2 = n2[np.any(np.abs(n2),1)]
 # n1=n1[1]
 # n2=n2[1]
 # plt.plot(np.arange(255),n2)
-# plt.plot(np.arange(255),n1)
+plt.plot(np.arange(255),n1x[1])
 # n2=n2[np.abs(np.arange(255)-130)<55]
-# n1=n1[np.abs(np.arange(255)-60)<55]
+n1x=n1x[1][np.abs(np.arange(255)-170)<55]
+# n1x=n1x[1][np.abs(np.arange(255)-60)<55]
 # n2=n2[np.abs(np.arange(255)-60)<55]
-# print('1 np.mean:',np.mean(n1))
-# print('1 np.std:',np.std(n1))
+print('1 np.mean:',np.mean(n1x))
+print('1 np.std:',np.std(n1x))
 # print('2 np.mean:',np.mean(n2))
 # print('2 np.std:',np.std(n2))
+plt.plot(np.arange(109)+116,n1x)
 # plt.plot(np.arange(109)+76,n2)
-# plt.plot(np.arange(109)+6,n1)
+# plt.plot(np.arange(109)+6,n1x)
 # plt.plot(np.arange(109)+6,n2)
+plt.show()
+#%%
+fig=plt.figure(figsize=(50,15))
+x=7500
+y=100
+z0=0
+z1=200
+z=1
 plt.subplot(121)
-[plt.plot(np.arange(255),n1[0,i]+30*i)for i in range(0,200,5)]#if np.any(n1[0,i])]
+[plt.plot(np.arange(255),n1[0,i]+y*i)for i in range(z0,z1,z)if np.any(n1[0,i])]
 # plt.subplot(121)
-[plt.plot(np.arange(255),n2[0,i]+30*i+7500)for i in range(0,200,5)]#if np.any(n2[0,i])]
-[plt.plot(np.arange(255),n3[0,i]+30*i+15000)for i in range(0,200,5)]#if np.any(n3[0,i])]
-plt.subplot(122)
-[plt.plot(np.arange(255),n1[1,i]+30*i)for i in range(0,200,5)]#if np.any(n1[1,i])]
+# [plt.plot(np.arange(255),n2[0,i]+y*i+x)for i in range(z0,z1,z)if np.any(n2[0,i])]
+# plt.ylim(3400,4500)
+# [plt.plot(np.arange(255),n3[0,i]+y*i+x*2)for i in range(z0,z1,z)if np.any(n3[0,i])]
 # plt.subplot(122)
-[plt.plot(np.arange(255),n2[1,i]+30*i+7500)for i in range(0,200,5)]#if np.any(n2[1,i])]
-[plt.plot(np.arange(255),n3[1,i]+30*i+15000)for i in range(0,200,5)]#if np.any(n3[1,i])]
+# [plt.plot(np.arange(255),n1[1,i]+y*i)for i in range(z0,z1,z)if np.any(n1[1,i])]
+# plt.subplot(122)
+# [plt.plot(np.arange(255),n2[1,i]+y*i+x)for i in range(z0,z1,z)if np.any(n2[1,i])]
+# plt.ylim(2500,6000)
+# [plt.plot(np.arange(255),n3[1,i]+y*i+x*2)for i in range(z0,z1,z)if np.any(n3[1,i])]
 plt.show()
 # %%

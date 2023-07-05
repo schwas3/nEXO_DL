@@ -136,6 +136,7 @@ class NoisedDatasetFromSparseMatrix(data.Dataset):
         self.seed_list2 = []
         self.noise_amplitude = noise_amplitude
         self.restore_quiet = restore_quiet
+        self.mislabeled_indices = []
 
     def __len__(self):
         return len(self.datainfo)
@@ -147,26 +148,32 @@ class NoisedDatasetFromSparseMatrix(data.Dataset):
         dset_entry_y = csr_matrix((h5_entry['data_y'][:], h5_entry['indices_y'][:],
                                    h5_entry['indptr_y'][:]), h5_entry.attrs['shape_y'], dtype=np.float32).todense() 
         eventtype = 1 if h5_entry.attrs[u'tag']=='e-' else 0
+        if idx in self.mislabeled_indices: eventtype = 1 - eventtype
         img = np.array([dset_entry_x, dset_entry_y])
-        print(img.shape)
+        # print(img.shape)
+        # if self.noise_amplitude != 0:
         active_channels = np.any(img,2,keepdims=True)
-        quiet_channels = np.all(img==0,2,keepdims=True)
         active_times = np.any(img,(0,1),keepdims=True)
-        print((quiet_channels*active_times).shape)
-        print(quiet_channels.shape,active_channels.shape,active_times.shape,(active_channels*active_times).shape)
+        # print((quiet_channels*active_times).shape)
+        # print(quiet_channels.shape,active_channels.shape,active_times.shape,(active_channels*active_times).shape)
         if self.restore_quiet:
+            quiet_channels = np.all(img==0,2,keepdims=True)
             # -print((1-active_channels).shape,active_channels.shape)
             active_quiet = quiet_channels * active_times
-            print(active_quiet.shape)
+            # print(active_quiet.shape)
             # -print(img[active_quiet].shape,np.array(active_quiet).shape)
             np.random.seed(self.seed_list2[idx])
+            # print(img[active_quiet],img)
+            # img += np.where()
             img[active_quiet] += np.random.normal(0,25,np.sum(active_quiet))
-            active = active_times
-            # print(active.shape)
-            np.random.seed(self.seed_list1[idx])
-            mask = np.random.normal(0,25,(2,200,np.sum(active_times)))
-            img[:,:,active_times[0,0]] += mask * self.noise_amplitude
-        else:
+            if self.noise_amplitude != 0:
+                # print(np.sum(img[active_quiet]==0))
+                active = active_times
+                # print(active.shape)
+                np.random.seed(self.seed_list1[idx])
+                mask = np.random.normal(0,25,(2,200,np.sum(active_times)))
+                img[:,:,active_times[0,0]] += mask * self.noise_amplitude
+        elif self.noise_amplitude != 0:
             active = active_channels * active_times
             # print(active.shape)
         # print(img[active_channels].shape)
@@ -174,7 +181,7 @@ class NoisedDatasetFromSparseMatrix(data.Dataset):
         # print(self.seed_list[idx])
             np.random.seed(self.seed_list1[idx])
             mask = np.random.normal(0,25,np.sum(active))
-            print(active.shape)
+            # print(active.shape)
             img[active] += mask * self.noise_amplitude
         return torch.from_numpy(img).type(torch.FloatTensor), eventtype
 
