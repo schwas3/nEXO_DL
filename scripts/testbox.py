@@ -20,25 +20,30 @@ def getShortname(short_cmd='0 -q',prefix = 'misc_1_'):
     shortname = '%s%s_Q%i_%s-Q_%s%s'%(prefix,short_cmd.split()[0],'-q'in short_cmd,['fixed','reseeded']['-Q'in short_cmd],['fixed','reseeded']['-N'in short_cmd],''if '-m'not in short_cmd else'_%s'%(float(short_cmd.split()[-1])))
     return shortname
 
-def getFilename(short_name):
-    return '/p/lustre2/nexouser/scotswas/DNN_study/nEXO_DL/scripts/output/%s/%s_loss_acc.npy'%(short_name,short_name)
+def getShortname_lmdb(short_cmd='100',prefix = 'lmdb_'):
+    shortname = '%s%ge'%(prefix,int(short_cmd.split()[0]))
+    return shortname
+
+def getFilename(short_name,lmdb=1):
+    if lmdb:return '/p/lustre2/nexouser/scotswas/DNN_study/nEXO_DL/scripts/output/%s/%s_loss_acc.npy'%(short_name,short_name)
+    else:return '/p/lustre2/nexouser/scotswas/DNN_study/nEXO_DL/scripts/output/archive/%s/%s_loss_acc.npy'%(short_name,short_name)
 
 def prepareData(filename):
     data = np.load(filename,allow_pickle=True)[-1]
     return data
 
-def getEpoch(short_cmd='0 -q',epoch=0):
-    return np.array(prepareData(getFilename(getShortname(short_cmd)))[epoch])
+def getEpoch(short_cmd='0 -q',epoch=0,lmdb=1):
+    return np.array(prepareData(getFilename(getShortname(short_cmd)if lmdb==0 else getShortname_lmdb(short_cmd),lmdb))[epoch])
 
-def getGammasAndBetas(short_cmd='0 -q',epoch=0):
-    data = getEpoch(short_cmd,epoch)
+def getGammasAndBetas(short_cmd='0 -q',epoch=0,lmdb=1):
+    data = getEpoch(short_cmd,epoch,lmdb)
     gammaData = data[data[:,1]==0][:,0]
     betaData = data[data[:,1]==1][:,0]
     return gammaData,betaData
 
-def getGammaBetaHistograms(short_cmd='0 -q',epoch=0,percentilesOrThresholds=1,nDivisions=100):
+def getGammaBetaHistograms(short_cmd='0 -q',epoch=0,percentilesOrThresholds=1,nDivisions=100,lmdb=1):
     '''Return percentiles (0) or thresholds (1) of nDivisions equally spaced from 0 to 1'''
-    gammaData, betaData = getGammasAndBetas(short_cmd,epoch)
+    gammaData, betaData = getGammasAndBetas(short_cmd,epoch,lmdb)
     # gammaData = np.zeros(gammaData.size)
     # betaData = np.ones(betaData.size)
     # gammaData = np.random.random(gammaData.size)
@@ -52,11 +57,13 @@ def getGammaBetaHistograms(short_cmd='0 -q',epoch=0,percentilesOrThresholds=1,nD
         # np.sort blah blah blah
     return gammaData, betaData
 
-def getGammaClear85ThresholdRate(short_cmd='0 -q',nEpochs = 20):
+def getGammaClear85ThresholdRate(short_cmd='0 -q',nEpochs = 20,lmdb=1):
     '''Returns the clearance rate of gammas for a threshold allowing 85% of betas and the epoch it occurs'''
     bestEpoch, bestThresh, bestClearance = 0,0,1
     for epoch in range(nEpochs):
-        gammaData,betaData = getGammasAndBetas(short_cmd,epoch)
+        gammaData,betaData = getGammasAndBetas(short_cmd,epoch,lmdb)
+        print(len(gammaData))
+        print(len(betaData))
         fifteenthPercentileIndex = round(len(betaData)*0.15)
         threshold = np.sort(betaData)[fifteenthPercentileIndex]
         clearance = np.sum(gammaData >= threshold) / len(gammaData)
@@ -65,36 +72,40 @@ def getGammaClear85ThresholdRate(short_cmd='0 -q',nEpochs = 20):
             bestThresh = threshold
             bestClearance = clearance
     return bestEpoch, bestThresh, bestClearance
-
-
-
 #%%
-fig=plt.figure(figsize=(30,3))
-j=0
-betas = 129752
-gammas = 112961
-for n in [0,1,2,4,10]:
-    relabeledGammas = (gammas + betas) * n / 100
-    trainingBetas_p = betas * 0.8
-    trainingGammas_c = (gammas - relabeledGammas) * 0.8
-    trainingGammas_p = relabeledGammas
-    validationGammas = gammas - trainingGammas_c - trainingGammas_p
-    validationBetas = betas - trainingBetas_p
-    n = trainingGammas_p / trainingBetas_p * 100
-    plt.subplot(1,5,j+1)
-    j+=1
-    plt.bar(['C','P','V'],[trainingGammas_c,trainingGammas_p,validationGammas],bottom=[0,trainingBetas_p,validationBetas])
-    plt.bar(['P','V'],[trainingBetas_p,validationBetas])
-    plt.title('Physics: %g%% $\\gamma$\'s'%(round(100*trainingGammas_p/(trainingGammas_p+trainingBetas_p),1)),fontsize=28)
-    plt.xticks(fontsize=24)
-    print(n,trainingBetas_p,trainingGammas_c,trainingGammas_p,validationBetas,validationGammas)
-    plt.ylim(0,130000)
-plt.show()
+# fig = plt.figure(figsize=(30,12))
+
+
+
+
+#%% Makes bar plots of number of gammas/betas - from collab mtg talk
+# fig=plt.figure(figsize=(30,3))
+# j=0
+# betas = 129752
+# gammas = 112961
+# for n in [0,1,2,4,10]:
+#     relabeledGammas = (gammas + betas) * n / 100
+#     trainingBetas_p = betas * 0.8
+#     trainingGammas_c = (gammas - relabeledGammas) * 0.8
+#     trainingGammas_p = relabeledGammas
+#     validationGammas = gammas - trainingGammas_c - trainingGammas_p
+#     validationBetas = betas - trainingBetas_p
+#     n = trainingGammas_p / trainingBetas_p * 100
+#     plt.subplot(1,5,j+1)
+#     j+=1
+#     plt.bar(['C','P','V'],[trainingGammas_c,trainingGammas_p,validationGammas],bottom=[0,trainingBetas_p,validationBetas])
+#     plt.bar(['P','V'],[trainingBetas_p,validationBetas])
+#     plt.title('Physics: %g%% $\\gamma$\'s'%(round(100*trainingGammas_p/(trainingGammas_p+trainingBetas_p),1)),fontsize=28)
+#     plt.xticks(fontsize=24)
+#     print(n,trainingBetas_p,trainingGammas_c,trainingGammas_p,validationBetas,validationGammas)
+#     plt.ylim(0,130000)
+# plt.show()
 #%%
 
-short_cmd = '0 -q -m 0'
-epoch, thresh, clearance = getGammaClear85ThresholdRate(short_cmd)
-gammaData,betaData = getGammaBetaHistograms(short_cmd,epoch,nDivisions=100)
+short_cmd = '100'
+lmdb = 1
+epoch, thresh, clearance = getGammaClear85ThresholdRate(short_cmd,lmdb)
+gammaData,betaData = getGammaBetaHistograms(short_cmd,epoch,nDivisions=100,lmdb=lmdb)
 gammaData, xData = gammaData
 betaData, _ = betaData
 xData = xData[:-1]

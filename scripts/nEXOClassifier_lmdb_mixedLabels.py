@@ -149,21 +149,21 @@ def test(testloader, epoch, saveall=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch nEXO background rejection')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-    parser.add_argument('--config', '-f', type=str, default="baseline.yml", help="specify yaml config")
-    parser.add_argument('--noise_amp', '-n', type=float, default=100, help="Set noise level in electrons")
-    parser.add_argument('--prefix', '-p', type=str, default='lmdb_', help="Set filename prefix")
+    parser.add_argument('--config', '-f', type=str, default="noise_test.yml", help="specify yaml config")
+    # parser.add_argument('--noise_amp', '-n', type=float, default=100, help="Set noise level in electrons")
+    parser.add_argument('--prefix', '-p', type=str, default='lmdb_mislabel_', help="Set filename prefix")
     parser.add_argument('--submit', '-s', action='store_true',help='submit job')
     # parser.add_argument('--restore_quiet', '-q', action='store_true',help='Add 25 unit gaussian noise to quiet channels')
     # parser.add_argument('--reseed_quiet', '-Q', action='store_true',help='1_\{123\} for restoring quiet channels (reseed restoration of RMS noise each epoch)')
     # parser.add_argument('--reseed_noise', '-N', action='store_true',help='X_\{123\} for excess noise (reseed excess noise each epoch)')
     parser.add_argument('--run', '-R', action='store_true',help='run nEXOClassifier')
-    # parser.add_argument('--mislabeled_gammas_as_electrons', '-m', type=float, default=0, help='Percent of training gammas to label as electrons')
+    parser.add_argument('--mislabeled_gammas_as_electrons', '-m', type=float, default=0, help='Percent of physics data to be gammas')
 
     args = parser.parse_args()
 
     config = yaml_load(args.config)
-    filename_prefix = config['save_dir'] + args.prefix + ('%ge'%(args.noise_amp))
-    shortname_prefix = '/' + args.prefix + ('%ge'%(args.noise_amp)) + '_'
+    filename_prefix = config['save_dir'] + args.prefix + ('%g'%(args.mislabeled_gammas_as_electrons))
+    shortname_prefix = '/' + args.prefix + ('%g'%(args.mislabeled_gammas_as_electrons)) + '_'
 
     if not os.path.isdir(filename_prefix):
         os.mkdir(filename_prefix)
@@ -174,9 +174,10 @@ if __name__ == "__main__":
 
         # parameters
         data_name = config['data']['name']
-        in_name = config['data']['in_name']
-        in_name1 = '/p/lustre2/nexouser/scotswas/DNN_study/output/%ie/images'%(args.noise_amp)
-        in_name2 = '/p/lustre2/nexouser/scotswas/DNN_study/output/%ie/images2'%(args.noise_amp)
+        in_name1 = config['data']['in_name1'].split()
+        in_name2 = config['data']['in_name2'].split()
+        in_name3 = config['data']['in_name3'].split()
+        # in_name = '/p/lustre2/nexouser/scotswas/DNN_study/output/%ie/images'%(100)
         # h5file = config['data']['h5name']
         # fcsv = config['data']['csv']
         input_shape = [int(i) for i in config['data']['input_shape']]
@@ -184,46 +185,46 @@ if __name__ == "__main__":
         batch_size = config['fit']['batch_size']
         epochs = config['fit']['epochs']
         
-        noise_amplitude = args.noise_amp
+        gammas_in_physics = args.mislabeled_gammas_as_electrons / 100
+
 
         # Data
         print('==> Preparing data..')
-        # nEXODataset = DatasetFromSparseMatrix(h5file, fcsv, n_channels=input_shape[2])#,seed=1,noise_amplitude=noise_amplitude)
-        nEXODataset1 = Datasets.pyxis_discriminator_dataset(in_name1)
-        nEXODataset2 = Datasets.pyxis_discriminator_dataset(in_name2)
-        # nEXODataset2.len = 
-        # nEXODataset3 = Datasets.pyxis_discriminator_dataset_of_betas(in_name)
-        nEXODataset = torch.utils.data.ConcatDataset([nEXODataset1,nEXODataset2])
-        # nEXODataset = Datasets.pyxis_discriminator_dataset(in_name)
+        
+        nEXODatasetHolder = []
+        nEXODataset1_len = 0
+        nEXODataset2_len = 0
+        nEXODataset3_len = 0
+        # print(in_name1,in_name2,in_name3)
+        for in_name in in_name1:
+            nEXODatasetHolder += [Datasets.pyxis_discriminator_dataset(in_name)]
+            nEXODataset1_len += len(nEXODatasetHolder[-1])
+        for in_name in in_name2:
+            nEXODatasetHolder += [Datasets.pyxis_discriminator_dataset(in_name)]
+            nEXODataset2_len += len(nEXODatasetHolder[-1])
+        for in_name in in_name3:
+            nEXODatasetHolder += [Datasets.pyxis_discriminator_dataset_of_betas(in_name)]
+            nEXODataset3_len += len(nEXODatasetHolder[-1])
 
-        # Creating data indices for training and validation splits:
-        dataset_size = len(nEXODataset)
-        print(len(nEXODataset1))
-        print(len(nEXODataset2))
-        indices = list(range(dataset_size))
-        validation_split = .2
-        split = int(np.floor(validation_split * dataset_size))
+        nEXODataset = torch.utils.data.ConcatDataset(nEXODatasetHolder)
+
         shuffle_dataset = True
         random_seed = 40
-        if shuffle_dataset :
+        indices1 = np.arange(nEXODataset1_len)
+        indices2 = np.arange(nEXODataset2_len) + nEXODataset1_len
+        indices3 = np.arange(nEXODataset3_len) + nEXODataset1_len + nEXODataset2_len
+        # print(indices1,indices2,indices3)
+        validation_split = .2
+        if shuffle_dataset:
             np.random.seed(random_seed)
-            np.random.shuffle(indices)
-        train_indices, val_indices = indices[split:], indices[:split]
+            np.random.shuffle(indices1)
+            np.random.shuffle(indices2)
+            np.random.shuffle(indices3)
+        val_indices = np.concatenate((indices1[:round(len(indices1)*validation_split)],indices2[:round(len(indices2)*validation_split)]))
+        train_indices = np.concatenate((indices1[round(len(indices1)*validation_split):],indices2[round(len(indices2)*validation_split):len(indices2)-round(len(indices2)*gammas_in_physics)],indices3[:round(len(indices2)*gammas_in_physics)]))
         train_indices = np.array(train_indices)
 
-        # mislabeled_gammas = round(args.mislabeled_gammas_as_electrons / 100 * dataset_size) # should change to len(train_indices * (1-labels)) -> i.e. number of train_indices that are gammas OR just prepare it with better calculations
-        # mislabeled_train_indices = (train_indices[train_indices>=129752])[:mislabeled_gammas] # set first mislabeled_gammas of train_indices >= 129752 (i.e. only gammas) to be relabeled to 0
-        # nEXODataset.mislabeled_indices = mislabeled_train_indices
-
-        # sq1 = np.random.SeedSequence()
-        # sq2 = np.random.SeedSequence()
-        # seed1 = sq1.entropy
-        # seed2 = sq2.entropy
         print('random_seed:',random_seed)#,'seed1:', seed1,'seed2:', seed2)
-        # if not args.reseed_noise:
-        #     nEXODataset.seed_list1 = sq1.generate_state(dataset_size)
-        # if args.restore_quiet and not args.reseed_quiet:
-        #     nEXODataset.seed_list2 = sq2.generate_state(dataset_size)
 
         # Creating PT data samplers and loaders:
         train_sampler = SubsetRandomSampler(train_indices)
@@ -344,7 +345,7 @@ source /p/vast1/nexo/tioga_software/tioga-torch/bin/activate
 cd /p/lustre2/nexouser/scotswas/DNN_study/nEXO_DL
 source setup.sh
 cd scripts
-python nEXOClassifier_lmdb.py %s--config %s --noise_amp %s -p %s -R > %s.out 2> %s.err""" % (jobName,'-r '*args.resume,args.config,args.noise_amp,args.prefix,filename_prefix + shortname_prefix[:-1], filename_prefix + shortname_prefix[:-1]))
+python nEXOClassifier_lmdb_mixedLabels.py %s--config %s --mislabeled_gammas_as_electrons %s -p %s -R > %s.out 2> %s.err""" % (jobName,'-r '*args.resume,args.config,args.mislabeled_gammas_as_electrons,args.prefix,filename_prefix + shortname_prefix[:-1], filename_prefix + shortname_prefix[:-1]))
 
         if args.submit:
             print(cmd)

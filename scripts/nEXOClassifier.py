@@ -307,7 +307,7 @@ source /p/vast1/nexo/tioga_software/tioga-torch/bin/activate
 cd /p/lustre2/nexouser/scotswas/DNN_study/nEXO_DL
 source setup.sh
 cd scripts
-python nEXOClassifier.py %s --config %s --noise_amp %g -R --prefix %s > %s.out 2> %s.err""" % (jobName,'--resume'*args.resume,args.config,args.noise_amp,args.prefix,filename_prefix + shortname_prefix[:-1], filename_prefix + shortname_prefix[:-1]))
+python nEXOClassifier.py %s--config %s --noise_amp %g -R --prefix %s > %s.out 2> %s.err""" % (jobName,'--resume'*args.resume,args.config,args.noise_amp,args.prefix,filename_prefix + shortname_prefix[:-1], filename_prefix + shortname_prefix[:-1]))
 
         if args.submit:
             print(cmd)
